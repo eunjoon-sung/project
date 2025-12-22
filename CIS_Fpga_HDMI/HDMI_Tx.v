@@ -1,6 +1,6 @@
 module HDMI_Tx(
     input PXLCLK_I,       // 25MHz (Pixel Clock)
-    input PXLCLK_5X_I,    // 125MHz (Serial Clock) - Clock Wizard에서 만드셨죠?
+    input PXLCLK_5X_I,    // 125MHz (Serial Clock)
     input LOCKED_I,       // Clock Locked
     input RST_I,          // Reset
 
