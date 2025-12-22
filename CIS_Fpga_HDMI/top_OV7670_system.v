@@ -115,7 +115,7 @@ module top_OV7670_system(
     wire w_frame_done = frame_done;
     
     Camera_to_SRAM u_Camera(
-        .p_clock(pclk_buffered),
+        .p_clock(ov7670_pclk),
         .rst(!camera_reset_reg),
         .vsync(ov7670_vsync),
         .href(ov7670_href),
@@ -133,7 +133,7 @@ module top_OV7670_system(
    
     blk_mem_gen_0 u_buffer (
         .ena(1'b1),
-        .clka(pclk_buffered),
+        .clka(ov7670_pclk),
         .wea(w_bram_we),       // IP 설정에 따라 [0:0] 벡터일 수도 있음
         .addra(w_bram_addr),
         .dina(w_bram_data),
