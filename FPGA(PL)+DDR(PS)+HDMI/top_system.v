@@ -1,8 +1,12 @@
 `timescale 1ns / 1ps
 
 module top_system(
+(* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 sys_clk CLK" *)
+(* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF m_axi_w:m_axi_r, ASSOCIATED_RESET sys_rst_n, FREQ_HZ 50000000" *)
     input wire sys_clk,       // 보드 기본 클럭 (예: 50MHz or 100MHz)
     input wire sys_rst_n,     // 보드 리셋 버튼 (Active Low 가정)
+    
+    output wire o_clk_100Mhz,
     
     // OV7670 Camera Interface
     input wire ov7670_pclk,
@@ -56,6 +60,7 @@ module top_system(
 
     );
     
+    assign o_clk_100Mhz = clk_100Mhz;
     
     // -------------------------------------------------------
     // 1. 시스템 리셋 처리 (Active Low -> Active High 변환 등)
@@ -65,7 +70,7 @@ module top_system(
     reg [19:0] power_on_timer = 0; // 약 20ms 대기용 타이머
     reg camera_reset_reg = 0;      // 카메라 리셋 제어 레지스터 (초기값 0: 리셋 상태)
 
-    always @(posedge sys_clk) begin
+    always @(posedge clk_25Mhz) begin // 여기 수정@!
         if (!sys_rst_n || !locked) begin
             // 리셋 버튼을 누르거나, 클럭이 불안정하면 -> 카메라를 리셋시킨다(0).
             power_on_timer <= 0;
@@ -138,8 +143,7 @@ module top_system(
     wire [9:0] w_x_count;
     wire [8:0] w_y_count;
     wire w_pixel_valid; // 한 픽셀 완성 알림
-    
-    Camera_capture u_cap (
+   Camera_capture u_cap (
     .rst(!camera_reset_reg),
     .p_clock(ov7670_pclk),
     .vsync(ov7670_vsync),
@@ -151,7 +155,8 @@ module top_system(
     .o_y_count(w_y_count),
     .pixel_valid(w_pixel_valid)
     );
-         // Chroma-Key Module
+        
+    // Chroma-Key Module
     wire [15:0] w_bg_data;
     
     Background_gen u_Back (
@@ -298,5 +303,15 @@ module top_system(
         .HDMI_DATA_P(hdmi_data_p),
         .HDMI_DATA_N(hdmi_data_n)
     );
+        // -------------------------------------------------------
+    // 8. Debug LED (보험)
+    // -------------------------------------------------------
+    reg [25:0] beat_cnt;
+    always @(posedge clk_25Mhz) beat_cnt <= beat_cnt + 1;
+    
+    assign led[0] = beat_cnt[25];  // Heartbeat (시스템 생존 확인)
+    assign led[1] = locked;        // Clock PLL Lock
+    assign led[2] = !fifo_empty;   // FIFO에 데이터가 있는지 (켜져야 좋음)
+    assign led[3] = o_de;          // HDMI 데이터 출력 중인지
              
 endmodule

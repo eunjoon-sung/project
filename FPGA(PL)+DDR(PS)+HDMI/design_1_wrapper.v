@@ -1,8 +1,8 @@
 //Copyright 1986-2022 Xilinx, Inc. All Rights Reserved.
-//Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+//Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 //--------------------------------------------------------------------------------
-//Tool Version: Vivado v.2024.2 (win64) Build 5239630 Fri Nov 08 22:35:27 MST 2024
-//Date        : Mon Dec 29 20:13:15 2025
+//Tool Version: Vivado v.2025.1 (win64) Build 6140274 Thu May 22 00:12:29 MDT 2025
+//Date        : Tue Dec 30 17:26:16 2025
 //Host        : DESKTOP-K5FJDPT running 64-bit major release  (build 9200)
 //Command     : generate_target design_1_wrapper.bd
 //Design      : design_1_wrapper
@@ -41,7 +41,9 @@ module design_1_wrapper
     ov7670_data_0,
     ov7670_href_0,
     ov7670_pclk_0,
-    ov7670_vsync_0);
+    ov7670_vsync_0,
+    sys_clk_0,
+    sys_rst_n);
   inout [14:0]DDR_addr;
   inout [2:0]DDR_ba;
   inout DDR_cas_n;
@@ -73,6 +75,8 @@ module design_1_wrapper
   input ov7670_href_0;
   input ov7670_pclk_0;
   input ov7670_vsync_0;
+  input sys_clk_0;
+  input sys_rst_n;
 
   wire [14:0]DDR_addr;
   wire [2:0]DDR_ba;
@@ -105,6 +109,8 @@ module design_1_wrapper
   wire ov7670_href_0;
   wire ov7670_pclk_0;
   wire ov7670_vsync_0;
+  wire sys_clk_0;
+  wire sys_rst_n;
 
   design_1 design_1_i
        (.DDR_addr(DDR_addr),
@@ -137,5 +143,7 @@ module design_1_wrapper
         .ov7670_data_0(ov7670_data_0),
         .ov7670_href_0(ov7670_href_0),
         .ov7670_pclk_0(ov7670_pclk_0),
-        .ov7670_vsync_0(ov7670_vsync_0));
+        .ov7670_vsync_0(ov7670_vsync_0),
+        .sys_clk_0(sys_clk_0),
+        .sys_rst_n(sys_rst_n));
 endmodule
