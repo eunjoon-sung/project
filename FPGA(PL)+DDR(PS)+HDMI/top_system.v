@@ -259,44 +259,6 @@ module top_system(
         .RREADY(m_axi_r_rready),
         .RLAST(m_axi_r_rlast)
         );
-
-    
-    // -------------------------------------------------------
-    // 6. AXI4 READER (+ Asynchronous FIFO)
-    // -------------------------------------------------------
-
-    // HDMI로 나갈 데이터 선
-    wire [15:0] pixel_data;
-    wire rd_enable;
-    wire fifo_empty;
-    
-    
-    AXI4_reader u_AXI_rd(
-        // 1. System Inputs
-        .clk_25Mhz(clk_25Mhz),          // [수정] 모듈 포트명에 맞춤 (외부 25MHz 연결)
-        .clk_100Mhz(clk_100Mhz),   // AXI Clock
-        .rst(!camera_reset_reg),
-        .frame_done(w_frame_done), // 주소 리셋용 (VSync)
-        
-        // 2. Video Interface (VTG로 감)
-        .pixel_data(pixel_data),
-        .fifo_empty(fifo_empty),
-        .rd_enable(rd_enable),
-        
-        // 3. AXI Master Read Interface (Writer와 다른 선 사용!)
-        .ARADDR(m_axi_araddr),     
-        .ARVALID(m_axi_arvalid),
-        .ARREADY(m_axi_arready),
-        .ARLEN(m_axi_arlen),
-        .ARSIZE(m_axi_arsize),
-        .ARBURST(m_axi_arburst),
-        
-
-        .RDATA(m_axi_rdata),      
-        .RVALID(m_axi_rvalid),
-        .RREADY(m_axi_rready), 
-        .RLAST(m_axi_rlast)
-        );
     
     // -------------------------------------------------------
     // 7. Video timing Generator.v + HDMI module
