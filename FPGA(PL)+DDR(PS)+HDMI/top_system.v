@@ -191,6 +191,7 @@ module top_system(
     );
     
     wire w_o_pixel_valid;
+
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
     // -------------------------------------------------------
@@ -204,23 +205,60 @@ module top_system(
         .frame_done(w_frame_done), // from Camera_capture.v
         .pixel_valid(w_o_pixel_valid),
     
-    // 2. AXI Master Interface
-        .AWADDR(m_axi_awaddr),
-        .AWVALID(m_axi_awvalid),
-        .AWREADY(m_axi_awready),
-        .AWLEN(m_axi_awlen),
-        .AWSIZE(m_axi_awsize),
-        .AWBURST(m_axi_awburst),
+        // 2. AXI Master Interface
+        .AWADDR(m_axi_w_awaddr),
+        .AWVALID(m_axi_w_awvalid),
+        .AWREADY(m_axi_w_awready),
+        .AWLEN(m_axi_w_awlen),
+        .AWSIZE(m_axi_w_awsize),
+        .AWBURST(m_axi_w_awburst),
         
-        .WDATA(m_axi_wdata),
-        .WVALID(m_axi_wvalid),
-        .WREADY(m_axi_wready),
-        .WLAST(m_axi_wlast),
-        .WSTRB(m_axi_wstrb),
+        .WDATA(m_axi_w_wdata),
+        .WVALID(m_axi_w_wvalid),
+        .WREADY(m_axi_w_wready),
+        .WLAST(m_axi_w_wlast),
+        .WSTRB(m_axi_w_wstrb),
         
-        .BVALID(m_axi_bvalid),
-        .BREADY(m_axi_bready)
+        .BVALID(m_axi_w_bvalid),
+        .BREADY(m_axi_w_bready)
     );
+
+    
+    // -------------------------------------------------------
+    // 6. AXI4 READER (+ Asynchronous FIFO)
+    // -------------------------------------------------------
+
+    // HDMI로 나갈 데이터 선
+    wire [15:0] pixel_data;
+    wire rd_enable;
+    wire fifo_empty;
+    
+    
+    AXI4_reader u_AXI_rd(
+        // 1. System Inputs
+        .clk_25Mhz(clk_25Mhz),          // [수정] 모듈 포트명에 맞춤 (외부 25MHz 연결)
+        .clk_100Mhz(clk_100Mhz),   // AXI Clock
+        .rst(!camera_reset_reg),
+        .frame_done(w_frame_done), // 주소 리셋용 (VSync)
+        
+        // 2. Video Interface (VTG로 감)
+        .pixel_data(pixel_data),
+        .fifo_empty(fifo_empty),
+        .rd_enable(rd_enable),
+        
+        // 3. AXI Master Read Interface (Writer와 다른 선 사용!)
+        .ARADDR(m_axi_r_araddr), 
+        .ARVALID(m_axi_r_arvalid),
+        .ARREADY(m_axi_r_arready),
+        .ARLEN(m_axi_r_arlen),
+        .ARSIZE(m_axi_r_arsize),
+        .ARBURST(m_axi_r_arburst),
+    
+        .RDATA(m_axi_r_rdata),
+        .RVALID(m_axi_r_rvalid),
+        .RREADY(m_axi_r_rready),
+        .RLAST(m_axi_r_rlast)
+        );
 
     
     // -------------------------------------------------------
