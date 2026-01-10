@@ -14,7 +14,7 @@ module top_system(
     input wire clk_100Mhz,
     input wire locked, // PLL 락 신호
         
-    // OV7670 Camera Interface
+    // --- OV7670 Camera Interface ---
     input wire ov7670_pclk,
     input wire ov7670_vsync,
     input wire ov7670_href,
@@ -26,7 +26,7 @@ module top_system(
     output wire ov7670_pwdn,  // Power Down (0)
     output wire ov7670_reset, 
     
-    // --- Debug LED (옵션) ---
+    // --- Debug LED ---
     output wire [3:0] led,
     
     // --- HDMI 출력 ---
@@ -36,8 +36,9 @@ module top_system(
     output wire [2:0] hdmi_data_p,
     output wire [2:0] hdmi_data_n,
     
-    
-// 1. AXI Writer Port (To Zynq HP0)
+
+    // --- AXI4 interface ---
+    // 1. AXI Writer Port (To Zynq HP0)
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWADDR" *)
     output wire [31:0] m_axi_w_awaddr,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWVALID" *)
@@ -71,24 +72,23 @@ module top_system(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w BREADY" *)
     output wire        m_axi_w_bready,
     
-    
 
     // 2. AXI Reader Port (To Zynq HP1)
     output wire [31:0] m_axi_r_araddr,
     output wire        m_axi_r_arvalid,
-    input  wire        m_axi_r_arready, // Master 입장에서 Ready는 입력!
+    input  wire        m_axi_r_arready, // Master 입장에서 Ready는 입력
     output wire [7:0]  m_axi_r_arlen,
     output wire [2:0]  m_axi_r_arsize,
     output wire [1:0]  m_axi_r_arburst,
-    input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력!
-    input  wire        m_axi_r_rvalid,  // Valid 신호도 입력!
+    input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력
+    input  wire        m_axi_r_rvalid,  // Valid 신호도 입력
     output wire        m_axi_r_rready,
     input  wire        m_axi_r_rlast
 
     );
     
     // ILA
-    // Verilog는 Scalar(wire)를 Vector(wire [0:0])에 연결해도 에러를 내지 않습니다.
+    // 블럭 디자인이 아니라 모듈 안에서 선언해도 하드웨어 매니저에서 볼 수 있음
     ila_0 your_ila_instance (
     .clk(clk_100Mhz),             // 반드시 클럭 연결
     .probe0(m_axi_w_awready),  // 1비트 wire를 그냥 꽂으세요
@@ -98,12 +98,11 @@ module top_system(
     .probe4(m_axi_w_wlast),
     .probe5(w_state),
     .probe6(w_prog_full),
-    .probe7(!camera_reset_reg)
+    .probe7(!camera_reset_reg),
+    .probe8(m_axi_w_bvalid),
+    .probe9(m_axi_w_bready)
     
-);
-    
-    
-    //assign o_clk_100Mhz = clk_100Mhz;
+    );
     
     
     // -------------------------------------------------------
@@ -138,7 +137,7 @@ module top_system(
         end
     end
     
-// 카메라 기본 신호 연결
+    // 카메라 기본 신호 연결
     assign ov7670_xclk = clk_25Mhz; // 카메라에게 MCLK 공급
     assign ov7670_pwdn = 0;       // 항상 켜짐
     assign ov7670_reset = camera_reset_reg;      // (주의: 회로도에 따라 0일수도 1일수도 있음. 보통 1=Reset이면 0이어야 함)
@@ -227,6 +226,7 @@ module top_system(
     wire w_o_pixel_valid;
     wire w_prog_full;
     wire [1:0] w_state;
+    
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
     // -------------------------------------------------------
@@ -343,8 +343,9 @@ module top_system(
         .HDMI_DATA_P(hdmi_data_p),
         .HDMI_DATA_N(hdmi_data_n)
     );
-        // -------------------------------------------------------
-    // 8. Debug LED (보험)
+    
+    // -------------------------------------------------------
+    // 8. Debugging with LED (보험)
     // -------------------------------------------------------
     reg [25:0] beat_cnt;
     always @(posedge clk_25Mhz) beat_cnt <= beat_cnt + 1;
