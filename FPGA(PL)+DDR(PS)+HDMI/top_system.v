@@ -1,13 +1,19 @@
 `timescale 1ns / 1ps
 
 module top_system(
-(* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 sys_clk CLK" *)
-(* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF m_axi_w:m_axi_r, ASSOCIATED_RESET sys_rst_n, FREQ_HZ 50000000" *)
-    input wire sys_clk,       // 보드 기본 클럭 (예: 50MHz or 100MHz)
+
+    input wire sys_clk,
     input wire sys_rst_n,     // 보드 리셋 버튼 (Active Low 가정)
     
-    output wire o_clk_100Mhz,
-    
+    input wire clk_25Mhz,
+    input wire clk_125Mhz,
+    // 1. 이 포트는 m_axi_w와 m_axi_r 인터페이스의 기준 클럭이며, 주파수는 100MHz임을 선언
+    (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF m_axi_w:m_axi_r, FREQ_HZ 100000000" *)
+    // 2. 이 포트가 '클럭' 신호임을 비바도에게 확정해줌
+    (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk_100Mhz CLK" *)
+    input wire clk_100Mhz,
+    input wire locked, // PLL 락 신호
+        
     // OV7670 Camera Interface
     input wire ov7670_pclk,
     input wire ov7670_vsync,
@@ -31,20 +37,41 @@ module top_system(
     output wire [2:0] hdmi_data_n,
     
     
-    // 1. AXI Writer Port (To Zynq HP0)
+// 1. AXI Writer Port (To Zynq HP0)
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWADDR" *)
     output wire [31:0] m_axi_w_awaddr,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWVALID" *)
     output wire        m_axi_w_awvalid,
-    input  wire        m_axi_w_awready, // Master 입장에서 Ready는 입력
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWREADY" *)
+    input  wire        m_axi_w_awready, 
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWLEN" *)
     output wire [7:0]  m_axi_w_awlen,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWSIZE" *)
     output wire [2:0]  m_axi_w_awsize,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWBURST" *)
     output wire [1:0]  m_axi_w_awburst,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWCACHE" *)
+    output wire [3:0]  m_axi_w_awcache,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w AWPROT" *)
+    output wire [2:0]  m_axi_w_awprot,
+    
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w WDATA" *)
     output wire [63:0] m_axi_w_wdata,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w WVALID" *)
     output wire        m_axi_w_wvalid,
-    input  wire        m_axi_w_wready,  // Master 입장에서 Ready는 입력
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w WREADY" *)
+    input  wire        m_axi_w_wready,  
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w WLAST" *)
     output wire        m_axi_w_wlast,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w WSTRB" *)
     output wire [7:0]  m_axi_w_wstrb,
-    input  wire        m_axi_w_bvalid,  // Response는 입력!
+    
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w BVALID" *)
+    input  wire        m_axi_w_bvalid,  
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w BREADY" *)
     output wire        m_axi_w_bready,
+    
+    
 
     // 2. AXI Reader Port (To Zynq HP1)
     output wire [31:0] m_axi_r_araddr,
@@ -60,52 +87,58 @@ module top_system(
 
     );
     
-    assign o_clk_100Mhz = clk_100Mhz;
+    // ILA
+    // Verilog는 Scalar(wire)를 Vector(wire [0:0])에 연결해도 에러를 내지 않습니다.
+    ila_0 your_ila_instance (
+    .clk(clk_100Mhz),             // 반드시 클럭 연결
+    .probe0(m_axi_w_awready),  // 1비트 wire를 그냥 꽂으세요
+    .probe1(m_axi_w_awvalid),
+    .probe2(m_axi_w_wvalid),
+    .probe3(m_axi_w_wready),
+    .probe4(m_axi_w_wlast),
+    .probe5(w_state),
+    .probe6(w_prog_full),
+    .probe7(!camera_reset_reg)
+    
+);
+    
+    
+    //assign o_clk_100Mhz = clk_100Mhz;
+    
     
     // -------------------------------------------------------
     // 1. 시스템 리셋 처리 (Active Low -> Active High 변환 등)
     // -------------------------------------------------------
     wire rst = ~sys_rst_n; 
 
-    reg [19:0] power_on_timer = 0; // 약 20ms 대기용 타이머
-    reg camera_reset_reg = 0;      // 카메라 리셋 제어 레지스터 (초기값 0: 리셋 상태)
-
-    always @(posedge clk_25Mhz) begin // 여기 수정@!
-        if (!sys_rst_n || !locked) begin
-            // 리셋 버튼을 누르거나, 클럭이 불안정하면 -> 카메라를 리셋시킨다(0).
+    reg [20:0] power_on_timer = 0; 
+    reg camera_reset_reg = 0; 
+    
+    // clk_25Mhz가 아닌, 항상 뛰는 clk_100Mhz으로 감시
+    always @(posedge clk_100Mhz) begin
+        if (!sys_rst_n) begin
+            // 물리적 리셋 버튼이 눌리면 즉시 초기화
             power_on_timer <= 0;
             camera_reset_reg <= 0; 
         end
+        else if (!locked) begin
+            // 클럭 위저드가 아직 불안정하면 리셋 유지
+            power_on_timer <= 0;
+            camera_reset_reg <= 0;
+        end
         else begin
-            // 리셋이 풀리고 클럭이 안정되면 -> 시간을 잰다.
-            if (power_on_timer < 1000000) begin // 약 10ms~20ms 대기 (50MHz 기준)
+            // 클럭이 안정된(locked) 후에야 타이머 작동
+            if (power_on_timer < 2000000) begin // 100MHz 기준이므로 20ms를 채우려면 카운트 값을 2,000,000으로 늘려야 합니다.
                 power_on_timer <= power_on_timer + 1;
-                camera_reset_reg <= 0; // 아직은 리셋 유지 (기다려!)
+                camera_reset_reg <= 0; 
             end
             else begin
-                camera_reset_reg <= 1; 
+                camera_reset_reg <= 1; // 20ms 후에 리셋 해제
             end
         end
     end
     
-    // -------------------------------------------------------
-    // 2. Clock Wizard (기본 50MHz)
-    // -------------------------------------------------------
-    wire clk_25Mhz; 
-    wire clk_125Mhz;
-    wire clk_100Mhz;
-    wire locked; // PLL 락 신호
-    
-    clk_wiz_0 u_clock_gen (
-        .clk_in1(sys_clk),     // 25MHz for Capture Logic & Camera XCLK
-        .reset(rst),
-        .locked(locked),
-        .clk_out1(clk_25Mhz),    
-        .clk_out2(clk_125Mhz),   // 125Mhz for HDMI 2.0
-        .clk_out3(clk_100Mhz)   // 100Mhz for DDR Memory
-    );
-        
-    // 카메라 기본 신호 연결
+// 카메라 기본 신호 연결
     assign ov7670_xclk = clk_25Mhz; // 카메라에게 MCLK 공급
     assign ov7670_pwdn = 0;       // 항상 켜짐
     assign ov7670_reset = camera_reset_reg;      // (주의: 회로도에 따라 0일수도 1일수도 있음. 보통 1=Reset이면 0이어야 함)
@@ -143,7 +176,8 @@ module top_system(
     wire [9:0] w_x_count;
     wire [8:0] w_y_count;
     wire w_pixel_valid; // 한 픽셀 완성 알림
-   Camera_capture u_cap (
+    
+    Camera_capture u_cap (
     .rst(!camera_reset_reg),
     .p_clock(ov7670_pclk),
     .vsync(ov7670_vsync),
@@ -171,7 +205,7 @@ module top_system(
     wire [7:0] RG_max;
     
     vio_0 u_vio (
-      .clk(ov7670_pclk),                // 클럭 연결
+      .clk(clk_100Mhz),                // 클럭 연결
       .probe_out0(G_min),    // wire G_min에 연결 (8bit)
       .probe_out1(RG_max)    // wire RG_max에 연결 (8bit)
     );
@@ -191,7 +225,8 @@ module top_system(
     );
     
     wire w_o_pixel_valid;
-
+    wire w_prog_full;
+    wire [1:0] w_state;
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
     // -------------------------------------------------------
@@ -212,6 +247,8 @@ module top_system(
         .AWLEN(m_axi_w_awlen),
         .AWSIZE(m_axi_w_awsize),
         .AWBURST(m_axi_w_awburst),
+        .AWCACHE(m_axi_w_awcache),
+        .AWPROT(m_axi_w_awprot),
         
         .WDATA(m_axi_w_wdata),
         .WVALID(m_axi_w_wvalid),
@@ -220,7 +257,10 @@ module top_system(
         .WSTRB(m_axi_w_wstrb),
         
         .BVALID(m_axi_w_bvalid),
-        .BREADY(m_axi_w_bready)
+        .BREADY(m_axi_w_bready),
+        
+        .o_prog_full(w_prog_full), // debugging 용,
+        .state(w_state)
     );
 
     

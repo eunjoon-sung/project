@@ -19,18 +19,25 @@ module AXI4_writer(
     output wire [7:0] AWLEN, // burst 길이 0-255
     output wire [2:0] AWSIZE, // data size
     output wire [1:0] AWBURST, //  burst type
+    output wire [3:0] AWCACHE,
+    output wire [2:0] AWPROT,
     
     // 2. 데이터 채널
     output wire [AXI_DATA_WIDTH -1 : 0] WDATA,
     output reg WVALID,
     input wire WREADY,
-    output wire WLAST, // 마지막
+    output reg WLAST, // 마지막
     output wire [7:0] WSTRB, // Write Strobe
     
     // 3. 응답 채널
     input wire BVALID,
-    output reg BREADY
+    output reg BREADY,
+    
+    output wire o_prog_full,
+    output reg [1:0] state
     );
+    
+    assign o_prog_full = prog_full;
     
     reg [1:0] state = 0;
     reg [1:0] next_state = 0;
@@ -41,16 +48,17 @@ module AXI4_writer(
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
-    parameter FRAME_BASE_ADDR = 32'h0000_0000; // DDR 시작 주소
+    parameter FRAME_BASE_ADDR = 32'h0100_0000; // DDR 시작 주소
 
     assign AWLEN   = 8'd63;    // Burst Length = 64 (0~63)
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
+    assign AWCACHE = 4'b0000; // DDR 컨트롤러 활성화 핵심!
+    assign AWPROT  = 3'b010;  // 보안 검사 통과용
     assign WSTRB   = 8'hFF;    // 모든 바이트 유효
     
     // WREADY신호에 바로 전달되어야 하므로 wire로 연결해줌
     assign WDATA = fifo_data;
-    assign WLAST = (state == DATA_SEND) && (data_count == 8'd63);
     assign fifo_rd_en = (state == DATA_SEND) && (WREADY == 1);
     
     // fifo
@@ -71,10 +79,10 @@ module AXI4_writer(
     always @(posedge clk_100Mhz or posedge rst) begin
         if (rst) begin
             state <= 0;
-            next_state <= 0;
             data_count <= 0;
             AWADDR <= FRAME_BASE_ADDR;
             ADDR_OFFSET <= 0;
+            AWVALID <= 0; WVALID <= 0; BREADY <= 0;
         end
         else begin
             state <= next_state;
@@ -86,45 +94,54 @@ module AXI4_writer(
             case (state)
                 IDLE: begin
                     data_count <= 0;
+                    AWVALID <= 0;
                     if (prog_full) begin // fifo 거의 다 찼다는 신호
                         AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                     end
                 end
                 
                 ADDR_SEND: begin // 주소는 64번 동안 자동으로 8씩 증가하며 알아서 써짐 (64bit -> 8 byte)
-                    AWVALID <= 1;
-                    if (AWREADY) begin // valid, ready 둘 다 1인 순간 모두 전송됨
+                    if (AWVALID && AWREADY) begin // valid, ready 둘 다 1인 순간 모두 전송됨
                         AWVALID <= 0;
+                    end
+                    else begin
+                        AWVALID <= 1;
                     end
                 end
                 
                 DATA_SEND: begin
                     WVALID <= 1;
-                    AWVALID <= 0;
                     if (fifo_rd_en) begin // "FWFT mode" 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 나와있는 상태.
                         data_count <= data_count + 1;
                         
+                        if (data_count == 62) begin
+                            WLAST <= 1'b1;
+                        end
+                        
                         if (data_count == 63) begin
                             data_count <= 0;
+                            WLAST <= 0;
                             WVALID <= 0; // 64번 데이터 전송 (총 256픽셀)
                         end
                     end
                 end
                 
                 WAIT_RES: begin
-                    BREADY <= 1; // AXI 응답 기다림
-                    WVALID <= 0;
-                    if (BVALID == 1) begin
+                    if (BREADY && BVALID == 1) begin
                         ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
                         BREADY <= 0;
+                    end
+                    else begin
+                        AWVALID <= 0;
+                        BREADY <= 1; // AXI 응답 기다림
+                        WVALID <= 0;
                     end
                 end
             endcase
             
         end
     end
-    
-    // 2. combinational logic
+        // 2. combinational logic
     always @(*) begin
         next_state = state;
         case (state)
@@ -135,7 +152,7 @@ module AXI4_writer(
             end
             
             ADDR_SEND: begin
-                if (AWREADY == 1) begin
+                if (AWREADY == 1 && AWVALID == 1) begin
                     next_state = DATA_SEND;
                 end
             end
@@ -153,7 +170,9 @@ module AXI4_writer(
             end
         endcase
     end
-        // FIFO DUT
+    
+    
+    // FIFO DUT
     fifo_generator_0 u_fifo_writer(
         .rst(rst),
         .rd_data_count(rd_data_count),
