@@ -4,12 +4,13 @@ module top_system(
 
     input wire sys_clk,
     input wire sys_rst_n,     // 보드 리셋 버튼 (Active Low 가정)
-    
+
+    // edit: block design에서 clk wizard ip 추가해서 top system으로 넣는 걸로 바꿈
     input wire clk_25Mhz,
     input wire clk_125Mhz,
     // 1. 이 포트는 m_axi_w와 m_axi_r 인터페이스의 기준 클럭이며, 주파수는 100MHz임을 선언
     (* X_INTERFACE_PARAMETER = "ASSOCIATED_BUSIF m_axi_w:m_axi_r, FREQ_HZ 100000000" *)
-    // 2. 이 포트가 '클럭' 신호임을 비바도에게 확정해줌
+    // 2. 이 포트가 클럭신호임을 비바도에게 확정해줌
     (* X_INTERFACE_INFO = "xilinx.com:signal:clock:1.0 clk_100Mhz CLK" *)
     input wire clk_100Mhz,
     input wire locked, // PLL 락 신호
