@@ -32,8 +32,7 @@ module AXI4_writer(
     // 3. 응답 채널
     input wire BVALID,
     output reg BREADY,
-
-    // Debug 용
+    
     output wire o_prog_full,
     output reg [1:0] state
     );
@@ -54,7 +53,7 @@ module AXI4_writer(
     assign AWLEN   = 8'd63;    // Burst Length = 64 (0~63)
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
-    assign AWCACHE = 4'b0000; // DDR 컨트롤러 활성화
+    assign AWCACHE = 4'b1111; // DDR 컨트롤러 활성화 
     assign AWPROT  = 3'b010;  // 보안 검사 통과용
     assign WSTRB   = 8'hFF;    // 모든 바이트 유효
     
@@ -76,6 +75,12 @@ module AXI4_writer(
     localparam DATA_SEND = 2;
     localparam WAIT_RES = 3;
     
+    reg frame_done_sync1, frame_done_sync2;
+    always @(posedge clk_100Mhz) begin
+        frame_done_sync1 <= frame_done;
+        frame_done_sync2 <= frame_done_sync1; // 100MHz 클럭에 맞게 신호를 안정화
+    end
+    
     // 1. sequential logic
     always @(posedge clk_100Mhz or posedge rst) begin
         if (rst) begin
@@ -88,7 +93,7 @@ module AXI4_writer(
         else begin
             state <= next_state;
             
-            if (frame_done) begin // 한 프레임 끝나면 주소 초기화
+            if (frame_done_sync2) begin // 한 프레임 끝나면 주소 초기화
                 ADDR_OFFSET <= 0;
             end
             
@@ -112,7 +117,7 @@ module AXI4_writer(
                 
                 DATA_SEND: begin
                     WVALID <= 1;
-                    if (fifo_rd_en) begin // FIFO가 FWFT mode 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 먼저 나와있는 상태.
+                    if (fifo_rd_en) begin // "FWFT mode" 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 나와있는 상태.
                         data_count <= data_count + 1;
                         
                         if (data_count == 62) begin
@@ -122,14 +127,14 @@ module AXI4_writer(
                         if (data_count == 63) begin
                             data_count <= 0;
                             WLAST <= 0;
-                            WVALID <= 0; // 64번 데이터 전송 (총 256 픽셀)
+                            WVALID <= 0; // 64번 데이터 전송 (총 256픽셀)
                         end
                     end
                 end
                 
                 WAIT_RES: begin
                     if (BREADY && BVALID == 1) begin
-                        ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                        ADDR_OFFSET <= (ADDR_OFFSET + 32'd512) & 32'h001F_FFFF; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
                         BREADY <= 0;
                     end
                     else begin
@@ -142,7 +147,8 @@ module AXI4_writer(
             
         end
     end
-        // 2. combinational logic
+    
+    // 2. combinational logic
     always @(*) begin
         next_state = state;
         case (state)
