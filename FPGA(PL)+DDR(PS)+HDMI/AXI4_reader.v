@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-// DDR 메모리에서 AXI4 인터페이스로 데이터를 읽어와 FIFO에 담고 VTG 모듈로 픽셀 데이터 전달하는 모듈
 
 module AXI4_reader(
     input wire rst,
@@ -7,7 +6,7 @@ module AXI4_reader(
     input wire clk_25Mhz,  // fifo read clk
     input wire frame_done, // 한 프레임마다 청소
     
-    input wire de, // from VTG. data enable
+    input wire rd_enable, // from VTG.
     output wire fifo_empty,
     output wire [15:0] pixel_data, // from FIFO to VTG
     
@@ -16,22 +15,22 @@ module AXI4_reader(
     output reg [AXI_ADDR_WIDTH - 1:0] ARADDR,
     output reg ARVALID,
     input wire ARREADY,
-    output wire ARLEN,   // 상자를 몇 개나 연속으로 보낼지
-    output wire ARSIZE,  // 한 번 전송할 때 8바이트(64비트, 픽셀 4개)를 실어라
-    output wire ARBURST,
+    output wire [7:0] ARLEN,
+    output wire [2:0] ARSIZE,
+    output wire [1:0] ARBURST,
     
     // 2. 데이터 채널
     input wire RVALID,
     output reg RREADY,
     input wire RLAST,
-    input wire [AXI_DATA_WIDTH -1 : 0] RDATA // fifo input
-    
+    input wire [AXI_DATA_WIDTH -1 : 0] RDATA, // fifo input
+    output wire [3:0] ARCACHE
     );
     
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
-    parameter FRAME_BASE_ADDR = 32'h0000_0000; // DDR 시작 주소
+    parameter FRAME_BASE_ADDR = 32'h0100_0000; // DDR 시작 주소
     
     reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET; // 한 프레임 만들 동안 주소 300번 증가 (256 pixel * 300 = 76800 )
 
@@ -39,6 +38,7 @@ module AXI4_reader(
     assign ARLEN   = 8'd63;    // 64 Burst
     assign ARSIZE  = 3'b011;   // 8 Byte (64bit)
     assign ARBURST = 2'b01;    // INCR
+    assign ARCACHE = 4'b1111;
     
     // FSM state
     reg [1:0] state;
@@ -54,15 +54,17 @@ module AXI4_reader(
     // wire fifo_empty; 밖으로 뺌
     wire fifo_rd_en;
     
-    assign fifo_rd_en = de;
+    assign fifo_rd_en = rd_enable;
     
     // 1. sequential logic
     always @(posedge clk_100Mhz) begin
         if (rst) begin
             state <= 0;
-            next_state <= 0;
+            //next_state <= 0;
             ARADDR <= FRAME_BASE_ADDR;
             ADDR_OFFSET <= 0;
+            ARVALID <= 0;  // 리셋 시 0으로 초기화
+            RREADY <= 0;   // 리셋 시 0으로 초기화
         end
         else begin
             state <= next_state;
@@ -125,7 +127,7 @@ module AXI4_reader(
     
     fifo_generator_1 u_fifo_reader (
         .rst(rst),
-        .rd_data_count(),
+        .wr_data_count(),
         .prog_full(prog_full),
         
         .wr_clk(clk_100Mhz),
