@@ -297,10 +297,10 @@ module top_system(
     
     AXI4_reader u_AXI_rd(
         // 1. System Inputs
-        .clk_25Mhz(clk_25Mhz),          // [수정] 모듈 포트명에 맞춤 (외부 25MHz 연결)
+        .clk_25Mhz(clk_25Mhz),     
         .clk_100Mhz(clk_100Mhz),   // AXI Clock
         .rst(!camera_reset_reg),
-        .frame_done(w_frame_done), // 주소 리셋용 (VSync)
+        .frame_done(w_frame_done), // 주소 리셋용 (vsync)
         
         // 2. Video Interface (VTG로 감)
         .pixel_data(pixel_data),
