@@ -82,18 +82,17 @@ module top_system(
     output wire [7:0]  m_axi_r_arlen,
     output wire [2:0]  m_axi_r_arsize,
     output wire [1:0]  m_axi_r_arburst,
-    input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력!
-    input  wire        m_axi_r_rvalid,  // Valid 신호도 입력!
+    input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력
+    input  wire        m_axi_r_rvalid,  // Valid 신호도 입력
     output wire        m_axi_r_rready,
     input  wire        m_axi_r_rlast
 
     );
     
     // ILA
-    // Verilog는 Scalar(wire)를 Vector(wire [0:0])에 연결해도 에러를 내지 않습니다.
     ila_0 your_ila_instance (
     .clk(clk_100Mhz),             // 반드시 클럭 연결
-    .probe0(m_axi_w_awready),  // 1비트 wire를 그냥 꽂으세요
+    .probe0(m_axi_w_awready),  
     .probe1(m_axi_w_awvalid),
     .probe2(m_axi_w_wvalid),
     .probe3(m_axi_w_wready),
@@ -108,8 +107,6 @@ module top_system(
     
 );
     
-    
-    //assign o_clk_100Mhz = clk_100Mhz;
     
     
     // -------------------------------------------------------
