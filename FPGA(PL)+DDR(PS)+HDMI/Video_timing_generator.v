@@ -11,7 +11,7 @@ module Video_timing_generator(
     output wire de, // DATA Enable 신호. 화면 나오는 구간에 1 됨. To HDMI_Tx
 
     output wire rd_enable, // fifo 읽어오는 신호
-    output reg [23:0]   // R,G,B 각각 8비트. why 8bit?? HDMI 규격이 최소 8비트(RGB888)를 기본으로 사용하기 때문
+    output reg [23:0] rgb_data // R,G,B 각각 8비트. why 8bit?? HDMI 규격이 최소 8비트(RGB888)를 기본으로 사용하기 때문
     );
 
     // upscaling을 위한 자체 좌표 생성
@@ -72,15 +72,16 @@ module Video_timing_generator(
                                 line_buffer[buff_addr] <= pixel_data; // 라인버퍼에 한 줄 (320) 저장
                             end
 
-                            rgb_data[23:16] <= {pixel_data[11:8], 4'b0000};  // R
-                            rgb_data[15:8] <= {pixel_data[7:4], 4'b0000};    // G
-                            rgb_data[7:0] <= {pixel_data[3:0], 4'b0000};     // B
+                            // RGB565 -> RGB888 확장
+                            rgb_data[23:16] <= {pixel_data[15:11], 3'b000}; // R (5bit -> 8bit)
+                            rgb_data[15:8]  <= {pixel_data[10:5],  2'b00};  // G (6bit -> 8bit)
+                            rgb_data[7:0]   <= {pixel_data[4:0],   3'b000}; // B (5bit -> 8bit)
                         end
                         else if (v_count[0] == 1) begin // 홀수줄
                             // 라인 버퍼에 저장된 거 읽어서 출력
-                            rgb_data[23:16] <= {buff_out[11:8], 4'b0000};    // R
-                            rgb_data[15:8] <= {buff_out[7:4], 4'b0000};      // G
-                            rgb_data[7:0] <= {buff_out[3:0], 4'b0000};       // B
+                            rgb_data[23:16] <= {buff_out[15:11], 3'b000};
+                            rgb_data[15:8]  <= {buff_out[10:5],  2'b00};
+                            rgb_data[7:0]   <= {buff_out[4:0],   3'b000};
                         end
                     end
                     else begin
