@@ -79,10 +79,15 @@ module AXI4_reader(
                         ARADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                     end
                 end
-                
+                            
                 ADDR_SEND: begin
-                    ARVALID <= 1;
-                    if (ARREADY) begin
+                    // 기본적으로 1을 띄움
+                    if (ARVALID == 0) begin
+                        ARVALID <= 1;
+                    end
+                    
+                    // 핸드셰이크 성립(둘 다 1) 시에만 내림
+                    if (ARVALID && ARREADY) begin
                         ARVALID <= 0;
                     end
                 end
