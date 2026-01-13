@@ -31,7 +31,7 @@ module AXI4_writer(
     
     // 3. 응답 채널
     input wire BVALID,
-    output reg BREADY,
+    output wire BREADY,
     
     output wire o_prog_full,
     output reg [1:0] state,
@@ -60,7 +60,8 @@ module AXI4_writer(
     
     // WREADY신호에 바로 전달되어야 하므로 wire로 연결해줌
     assign WDATA = fifo_data;
-    assign fifo_rd_en = (state == DATA_SEND) && (WREADY == 1);
+    assign fifo_rd_en = (state == DATA_SEND) && (WREADY == 1) && (WVALID == 1); // WVALID가 1이 되어야 실제로 데이터를 쏠 수 있으므로, 그때부터 FIFO를 읽어야 함 [@] 이 부분이 ILA에서 WAIT_RES에 갇혀있었던 원인
+    assign BREADY = 1;
     
     // fifo
     wire fifo_full;
@@ -91,7 +92,7 @@ module AXI4_writer(
             data_count <= 0;
             AWADDR <= FRAME_BASE_ADDR;
             ADDR_OFFSET <= 0;
-            AWVALID <= 0; WVALID <= 0; BREADY <= 0;
+            AWVALID <= 0; WVALID <= 0;
         end
         else begin
             state <= next_state;
@@ -136,11 +137,9 @@ module AXI4_writer(
                 WAIT_RES: begin
                     if (BREADY && BVALID == 1) begin
                         ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
-                        BREADY <= 0;
                     end
                     else begin
                         AWVALID <= 0;
-                        BREADY <= 1; // AXI 응답 기다림
                         WVALID <= 0;
                     end
                 end
