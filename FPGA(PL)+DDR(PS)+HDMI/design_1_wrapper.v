@@ -2,7 +2,7 @@
 //Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 //--------------------------------------------------------------------------------
 //Tool Version: Vivado v.2025.1 (win64) Build 6140274 Thu May 22 00:12:29 MDT 2025
-//Date        : Tue Dec 30 17:26:16 2025
+//Date        : Tue Jan 13 20:06:15 2026
 //Host        : DESKTOP-K5FJDPT running 64-bit major release  (build 9200)
 //Command     : generate_target design_1_wrapper.bd
 //Design      : design_1_wrapper
@@ -41,9 +41,14 @@ module design_1_wrapper
     ov7670_data_0,
     ov7670_href_0,
     ov7670_pclk_0,
+    ov7670_pwdn_0,
+    ov7670_reset_0,
+    ov7670_sioc_0,
+    ov7670_siod_0,
     ov7670_vsync_0,
+    ov7670_xclk_0,
     sys_clk_0,
-    sys_rst_n);
+    sys_rst_n_0);
   inout [14:0]DDR_addr;
   inout [2:0]DDR_ba;
   inout DDR_cas_n;
@@ -74,9 +79,14 @@ module design_1_wrapper
   input [7:0]ov7670_data_0;
   input ov7670_href_0;
   input ov7670_pclk_0;
+  output ov7670_pwdn_0;
+  output ov7670_reset_0;
+  output ov7670_sioc_0;
+  inout ov7670_siod_0;
   input ov7670_vsync_0;
+  output ov7670_xclk_0;
   input sys_clk_0;
-  input sys_rst_n;
+  input sys_rst_n_0;
 
   wire [14:0]DDR_addr;
   wire [2:0]DDR_ba;
@@ -108,9 +118,14 @@ module design_1_wrapper
   wire [7:0]ov7670_data_0;
   wire ov7670_href_0;
   wire ov7670_pclk_0;
+  wire ov7670_pwdn_0;
+  wire ov7670_reset_0;
+  wire ov7670_sioc_0;
+  wire ov7670_siod_0;
   wire ov7670_vsync_0;
+  wire ov7670_xclk_0;
   wire sys_clk_0;
-  wire sys_rst_n;
+  wire sys_rst_n_0;
 
   design_1 design_1_i
        (.DDR_addr(DDR_addr),
@@ -143,7 +158,12 @@ module design_1_wrapper
         .ov7670_data_0(ov7670_data_0),
         .ov7670_href_0(ov7670_href_0),
         .ov7670_pclk_0(ov7670_pclk_0),
+        .ov7670_pwdn_0(ov7670_pwdn_0),
+        .ov7670_reset_0(ov7670_reset_0),
+        .ov7670_sioc_0(ov7670_sioc_0),
+        .ov7670_siod_0(ov7670_siod_0),
         .ov7670_vsync_0(ov7670_vsync_0),
+        .ov7670_xclk_0(ov7670_xclk_0),
         .sys_clk_0(sys_clk_0),
-        .sys_rst_n(sys_rst_n));
+        .sys_rst_n_0(sys_rst_n_0));
 endmodule
