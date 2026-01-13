@@ -34,7 +34,8 @@ module AXI4_writer(
     output reg BREADY,
     
     output wire o_prog_full,
-    output reg [1:0] state
+    output reg [1:0] state,
+    output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET
     );
     
     assign o_prog_full = prog_full;
@@ -43,7 +44,7 @@ module AXI4_writer(
     reg [1:0] next_state = 0;
     reg [7:0] data_count = 0; // 64개 세는 용도
     
-    reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET; // 한 프레임 만들 동안 주소 300번 증가 (256 pixel * 300 = 76800 )
+    //reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET; // 한 프레임 만들 동안 주소 300번 증가 (256 pixel * 300 = 76800 )
     
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
@@ -75,10 +76,12 @@ module AXI4_writer(
     localparam DATA_SEND = 2;
     localparam WAIT_RES = 3;
     
-    reg frame_done_sync1, frame_done_sync2;
+    // frame_done을 펄스로 변환
+    reg frame_done_d1;
+    wire frame_done_pulse = (frame_done == 1'b1 && frame_done_d1 == 1'b0);
+    
     always @(posedge clk_100Mhz) begin
-        frame_done_sync1 <= frame_done;
-        frame_done_sync2 <= frame_done_sync1; // 100MHz 클럭에 맞게 신호를 안정화
+        frame_done_d1 <= frame_done;
     end
     
     // 1. sequential logic
@@ -93,7 +96,7 @@ module AXI4_writer(
         else begin
             state <= next_state;
             
-            if (frame_done_sync2) begin // 한 프레임 끝나면 주소 초기화
+            if (frame_done_pulse) begin // 한 프레임 끝나면 주소 초기화
                 ADDR_OFFSET <= 0;
             end
             
@@ -101,9 +104,7 @@ module AXI4_writer(
                 IDLE: begin
                     data_count <= 0;
                     AWVALID <= 0;
-                    if (prog_full) begin // fifo 거의 다 찼다는 신호
-                        AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
-                    end
+                    AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                 end
                 
                 ADDR_SEND: begin // 주소는 64번 동안 자동으로 8씩 증가하며 알아서 써짐 (64bit -> 8 byte)
@@ -134,7 +135,7 @@ module AXI4_writer(
                 
                 WAIT_RES: begin
                     if (BREADY && BVALID == 1) begin
-                        ADDR_OFFSET <= (ADDR_OFFSET + 32'd512) & 32'h001F_FFFF; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                        ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
                         BREADY <= 0;
                     end
                     else begin
