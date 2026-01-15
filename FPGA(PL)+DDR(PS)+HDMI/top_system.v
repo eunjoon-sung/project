@@ -93,18 +93,19 @@ module top_system(
     // Verilog는 Scalar(wire)를 Vector(wire [0:0])에 연결해도 에러를 내지 않습니다.
     ila_0 your_ila_instance (
     .clk(clk_100Mhz),             // 반드시 클럭 연결
-    .probe0(m_axi_r_araddr),  // 1비트 wire를 그냥 꽂으세요
-    .probe1(m_axi_r_arvalid),
-    .probe2(m_axi_r_arready),
-    .probe3(m_axi_r_rdata),
-    .probe4(m_axi_r_rvalid),
-    .probe5(r_state),
-    .probe6(m_axi_r_rready),
-    .probe7(m_axi_r_rlast),
+    .probe0(m_axi_w_awaddr),  // 1비트 wire를 그냥 꽂으세요
+    .probe1(w_frame_done),
+    .probe2(m_axi_w_awvalid),
+    .probe3(m_axi_w_awready),
+    .probe4(m_axi_w_wvalid),
+    .probe5(m_axi_w_wready),
+    .probe6(writer_done),
+    .probe7(w_ADDR_OFFSET),
     .probe8(r_ADDR_OFFSET),
-    .probe9(w_frame_done),
-    .probe10(fifo_empty),
-    .probe11(rd_enable)
+    .probe9(vsync_sync2),
+    .probe10(m_axi_r_araddr),
+    .probe11(buf_select_reg),
+    .probe12(writer_done_reg)
     
 );
     
@@ -246,7 +247,7 @@ module top_system(
     wire w_o_pixel_valid;
     wire w_prog_full;
     wire [1:0] w_state;
-    wire [31:0] ADDR_OFFSET;
+    wire [31:0] w_ADDR_OFFSET;
     
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
@@ -286,12 +287,14 @@ module top_system(
         
         .o_prog_full(w_prog_full), // debugging 용,
         .state(w_state),
-        .ADDR_OFFSET(ADDR_OFFSET)
+        .ADDR_OFFSET(w_ADDR_OFFSET)
     );
     wire writer_done;
     wire buf_select;
     reg buf_select_reg;
     reg writer_done_reg;
+    
+    assign buf_select = buf_select_reg;
     
     // wire 신호 클럭에 동기화시킴
     
