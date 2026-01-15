@@ -4,7 +4,6 @@ module AXI4_reader(
     input wire rst,
     input wire clk_100Mhz, // fifo write clk (axi)
     input wire clk_25Mhz,  // fifo read clk
-    input wire frame_done, // 한 프레임마다 청소
     
     input wire rd_enable, // from VTG.
     output wire fifo_empty,
@@ -24,15 +23,23 @@ module AXI4_reader(
     output reg RREADY,
     input wire RLAST,
     input wire [AXI_DATA_WIDTH -1 : 0] RDATA, // fifo input
-    output wire [3:0] ARCACHE
+    output wire [3:0] ARCACHE,
+    
+    input wire buf_select,
+    input wire vsync_start_pulse,
+    
+    // Debugging
+    output reg [1:0] state,
+    output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET // 한 프레임 만들 동안 주소 300번 증가 (256 pixel * 300 = 76800 )
     );
     
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
-    parameter FRAME_BASE_ADDR = 32'h0100_0000; // DDR 시작 주소
     
-    reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET; // 한 프레임 만들 동안 주소 300번 증가 (256 pixel * 300 = 76800 )
+    // 더블 프레임 버퍼
+    wire [31:0] FRAME_BASE_ADDR;
+    assign FRAME_BASE_ADDR = (buf_select)? 32'h0100_0000 : 32'h0110_0000;    
 
     // AXI Constants
     assign ARLEN   = 8'd63;    // 64 Burst
@@ -41,7 +48,6 @@ module AXI4_reader(
     assign ARCACHE = 4'b1111;
     
     // FSM state
-    reg [1:0] state;
     reg [1:0] next_state;
     
     parameter IDLE = 0;
@@ -60,7 +66,6 @@ module AXI4_reader(
     always @(posedge clk_100Mhz) begin
         if (rst) begin
             state <= 0;
-            //next_state <= 0;
             ARADDR <= FRAME_BASE_ADDR;
             ADDR_OFFSET <= 0;
             ARVALID <= 0;  // 리셋 시 0으로 초기화
@@ -69,7 +74,7 @@ module AXI4_reader(
         else begin
             state <= next_state;
             
-            if (frame_done) begin // 한 프레임 끝나면 주소 초기화
+            if (vsync_start_pulse) begin // 한 프레임 끝나면 주소 초기화
                 ADDR_OFFSET <= 0;
             end
             
