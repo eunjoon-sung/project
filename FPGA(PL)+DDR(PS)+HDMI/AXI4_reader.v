@@ -49,7 +49,7 @@ module AXI4_reader(
             buf_select_reg <= buf_select;
         end
     end
-    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0110_0000 : 32'h0100_0000;    // writer랑 반대
+    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0110_0000 : 32'h0100_0000;    
 
     // AXI Constants
     assign ARLEN   = 8'd63;    // 64 Burst
@@ -91,9 +91,7 @@ module AXI4_reader(
             
             case (state)
                 IDLE: begin
-                    if (prog_empty) begin // FIFO Threshold : prog_empty 사용으로 수정함. 충분히 비었음 일 때 출발
-                        ARADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
-                    end
+                    ARADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                 end
                             
                 ADDR_SEND: begin
@@ -125,7 +123,7 @@ module AXI4_reader(
         next_state = state;
         case (state)
             IDLE: begin
-                if (!prog_full) begin
+                if (prog_empty) begin // FIFO Threshold : prog_empty 사용으로 수정함. 충분히 비었음 일 때 출발
                     next_state = ADDR_SEND;
                 end
             end
