@@ -98,7 +98,7 @@ module AXI4_reader(
             
             case (state)
                 IDLE: begin
-                    if (!prog_full) begin
+                    if (prog_empty) begin // FIFO Threshold : prog_empty 사용으로 수정함. 충분히 비었음 일 때 출발
                         ARADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                     end
                 end
