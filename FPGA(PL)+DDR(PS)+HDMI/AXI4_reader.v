@@ -82,11 +82,15 @@ module AXI4_reader(
             ARVALID <= 0;  // 리셋 시 0으로 초기화
             RREADY <= 0;   // 리셋 시 0으로 초기화
         end
-        else begin
-            state <= next_state;
-            
+        else begin            
             if (vsync_sync2) begin // 한 프레임 끝나면 주소 초기화
                 ADDR_OFFSET <= 0;
+                state <= IDLE;    // Stuck 방지
+                ARVALID <= 0;     // 진행 중인 요청 취소
+                RREADY <= 0;
+            end
+            else begin
+                state <= next_state;
             end
             
             case (state)
