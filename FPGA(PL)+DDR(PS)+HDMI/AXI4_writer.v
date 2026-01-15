@@ -156,23 +156,18 @@ module AXI4_writer(
                 
                 WAIT_RES: begin
                     if (BREADY && BVALID == 1) begin
-                        if (ADDR_OFFSET == 32'd153088 && fifo_empty) begin // 한 프레임 완료 시 (writer의 fifo는 비어있어야 함)
+                            // FIFO가 비었는지 따지지 말고, 주소 카운트가 끝에 도달했는지만 확인
+                        if (ADDR_OFFSET >= 32'd153088) begin 
                             writer_done <= 1;
                             ADDR_OFFSET <= 0;
                         end
                         else begin
                             writer_done <= 0;
-                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
                         end
                     end
-                    else begin
-                        AWVALID <= 0;
-                        WVALID <= 0;
-                        writer_done <= 0;
-                    end
                 end
-            endcase
-            
+             endcase
         end
     end
     
