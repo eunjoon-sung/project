@@ -76,6 +76,7 @@ module AXI4_writer(
     // 더블 프레임 버퍼
     wire [31:0] FRAME_BASE_ADDR;
     reg buf_select_reg;
+    
     always @(posedge clk_100Mhz) begin
         if (rst) begin
             buf_select_reg <= 0;
@@ -84,6 +85,7 @@ module AXI4_writer(
             buf_select_reg <= buf_select;
         end
     end
+    
     assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0100_0000 : 32'h0110_0000;    
     
     
