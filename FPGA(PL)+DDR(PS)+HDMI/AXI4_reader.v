@@ -39,7 +39,17 @@ module AXI4_reader(
     
     // 더블 프레임 버퍼
     wire [31:0] FRAME_BASE_ADDR;
-    assign FRAME_BASE_ADDR = (buf_select)? 32'h0100_0000 : 32'h0110_0000;    
+    reg buf_select_reg;
+    
+    always @(posedge clk_100Mhz) begin
+        if (rst) begin
+            buf_select_reg <= 0;
+        end
+        else begin
+            buf_select_reg <= buf_select;
+        end
+    end
+    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0100_0000 : 32'h0110_0000;    
 
     // AXI Constants
     assign ARLEN   = 8'd63;    // 64 Burst
@@ -62,6 +72,14 @@ module AXI4_reader(
     
     assign fifo_rd_en = rd_enable;
     
+    
+    // 100MHz 도메인에서 신호 동기화 (2 FF sync)
+    reg vsync_sync_d1, vsync_sync_d2;
+    always @(posedge clk_100Mhz) begin
+        vsync_sync_d1 <= vsync_start_pulse;
+        vsync_sync_d2 <= vsync_sync_d1;
+    end
+    
     // 1. sequential logic
     always @(posedge clk_100Mhz) begin
         if (rst) begin
@@ -74,7 +92,7 @@ module AXI4_reader(
         else begin
             state <= next_state;
             
-            if (vsync_start_pulse) begin // 한 프레임 끝나면 주소 초기화
+            if (vsync_sync_d2) begin // 한 프레임 끝나면 주소 초기화
                 ADDR_OFFSET <= 0;
             end
             
