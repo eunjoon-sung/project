@@ -298,7 +298,7 @@ module top_system(
     always @(posedge clk_100Mhz or posedge rst) begin
         if (rst) begin
             buf_select_reg <= 0;
-            writer_ready_flag <= 0;
+            writer_done_reg <= 0;
         end else begin
             // 1. Writer가 완료되면 1
             if (writer_done) begin
