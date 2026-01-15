@@ -363,6 +363,8 @@ module top_system(
     // -------------------------------------------------------
     
     wire vsync_start_pulse;
+    reg vsync_sync1;
+    reg vsync_sync2;
     // 25Mhz -> 100Mhz 도메인 동기화
     always @(posedge clk_100Mhz) begin
         vsync_sync1 <= vsync_start_pulse;
