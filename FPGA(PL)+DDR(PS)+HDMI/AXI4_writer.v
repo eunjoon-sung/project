@@ -33,6 +33,9 @@ module AXI4_writer(
     input wire BVALID,
     output wire BREADY,
     
+    output reg writer_done,
+    input wire buf_select,
+    
     output wire o_prog_full,
     output reg [1:0] state,
     output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET
@@ -49,7 +52,6 @@ module AXI4_writer(
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
-    parameter FRAME_BASE_ADDR = 32'h0100_0000; // DDR 시작 주소
 
     assign AWLEN   = 8'd63;    // Burst Length = 64 (0~63)
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
@@ -60,7 +62,7 @@ module AXI4_writer(
     
     // WREADY신호에 바로 전달되어야 하므로 wire로 연결해줌
     assign WDATA = fifo_data;
-    assign fifo_rd_en = (state == DATA_SEND) && (WREADY == 1) && (WVALID == 1); // WVALID가 1이 되어야 실제로 데이터를 쏠 수 있으므로, 그때부터 FIFO를 읽어야 함 [@] 이 부분이 ILA에서 WAIT_RES에 갇혀있었던 원인
+    assign fifo_rd_en = (state == DATA_SEND) && (WREADY == 1) && (WVALID == 1); // WVALID가 1이 되어야 실제로 데이터를 쏠 수 있으므로, 그때부터 FIFO를 읽어야 함
     assign BREADY = 1;
     
     // fifo
@@ -70,6 +72,10 @@ module AXI4_writer(
     wire [63:0] fifo_data;
     wire fifo_rd_en;
     wire [8:0] rd_data_count;
+    
+    // 더블 프레임 버퍼
+    wire [31:0] FRAME_BASE_ADDR;
+    assign FRAME_BASE_ADDR = (buf_select)? 32'h0100_0000 : 32'h0110_0000;
     
     
     localparam IDLE = 0;
@@ -93,6 +99,7 @@ module AXI4_writer(
             AWADDR <= FRAME_BASE_ADDR;
             ADDR_OFFSET <= 0;
             AWVALID <= 0; WVALID <= 0;
+            writer_done <= 0;
         end
         else begin
             state <= next_state;
@@ -104,6 +111,7 @@ module AXI4_writer(
             case (state)
                 IDLE: begin
                     data_count <= 0;
+                    writer_done <= 0;
                     AWVALID <= 0;
                     AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                 end
@@ -136,11 +144,19 @@ module AXI4_writer(
                 
                 WAIT_RES: begin
                     if (BREADY && BVALID == 1) begin
-                        ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                        if (ADDR_OFFSET == 32'd153088 && fifo_empty) begin // 한 프레임 완료 시 (writer의 fifo는 비어있어야 함)
+                            writer_done <= 1;
+                            ADDR_OFFSET <= 0;
+                        end
+                        else begin
+                            writer_done <= 0;
+                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                        end
                     end
                     else begin
                         AWVALID <= 0;
                         WVALID <= 0;
+                        writer_done <= 0;
                     end
                 end
             endcase
