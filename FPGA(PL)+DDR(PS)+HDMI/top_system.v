@@ -108,10 +108,7 @@ module top_system(
     
 );
     
-    
-    //assign o_clk_100Mhz = clk_100Mhz;
-    
-    
+
     // -------------------------------------------------------
     // 1. 시스템 리셋 처리 (Active Low -> Active High 변환 등)
     // -------------------------------------------------------
@@ -251,7 +248,6 @@ module top_system(
     wire [1:0] w_state;
     wire [31:0] ADDR_OFFSET;
     
-    wire writer_done;
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
     // -------------------------------------------------------
@@ -285,19 +281,37 @@ module top_system(
         .BREADY(m_axi_w_bready),
         
         .writer_done(writer_done),
-        .buf_select(buf_select),
+        .buf_select(buf_select), // from top
 
         
         .o_prog_full(w_prog_full), // debugging 용,
         .state(w_state),
         .ADDR_OFFSET(ADDR_OFFSET)
     );
-    
+    wire writer_done;
     wire buf_select;
+    reg buf_select_reg;
+    reg writer_done_reg;
     
-    assign buf_select = (writer_done)? 1:0;
+    // wire 신호 클럭에 동기화시킴
+    
+    always @(posedge clk_100Mhz or posedge rst) begin
+        if (rst) begin
+            buf_select_reg <= 0;
+            writer_ready_flag <= 0;
+        end else begin
+            // 1. Writer가 완료되면 1
+            if (writer_done) begin
+                writer_done_reg <= 1;
+            end
+            // 2. Reader가 화면을 새로 그리려는 시점(0,0)에 flag on이면 스왑
+            if (vsync_sync2 && writer_done_reg) begin
+                buf_select_reg <= ~buf_select_reg;
+                writer_done_reg <= 0;
+            end
+        end
+    end
 
-    
     // -------------------------------------------------------
     // 6. AXI4 READER (+ Asynchronous FIFO)
     // -------------------------------------------------------
@@ -307,9 +321,9 @@ module top_system(
     wire rd_enable;
     wire fifo_empty;
     
+    // for debug
     wire [1:0] r_state;
     wire [31:0] r_ADDR_OFFSET;
-
     
     
     AXI4_reader u_AXI_rd(
@@ -336,8 +350,8 @@ module top_system(
         .RREADY(m_axi_r_rready),
         .RLAST(m_axi_r_rlast),
         
-        .buf_select(buf_select),
-        .vsync_start_pulse(vsync_start_pulse),
+        .buf_select(buf_select), // from top
+        .vsync_sync2(vsync_sync2), // from VTG
         
         
         .state(r_state),
@@ -349,6 +363,11 @@ module top_system(
     // -------------------------------------------------------
     
     wire vsync_start_pulse;
+    // 25Mhz -> 100Mhz 도메인 동기화
+    always @(posedge clk_100Mhz) begin
+        vsync_sync1 <= vsync_start_pulse;
+        vsync_sync2 <= vsync_sync1;
+    end
     
     Video_timing_generator u_Video_timing_gen (
         .clk(clk_25Mhz),
