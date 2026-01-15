@@ -49,7 +49,7 @@ module AXI4_reader(
             buf_select_reg <= buf_select;
         end
     end
-    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0100_0000 : 32'h0110_0000;    
+    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0110_0000 : 32'h0100_0000;    // writer랑 반대
 
     // AXI Constants
     assign ARLEN   = 8'd63;    // 64 Burst
