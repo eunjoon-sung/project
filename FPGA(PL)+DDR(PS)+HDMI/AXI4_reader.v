@@ -150,6 +150,7 @@ module AXI4_reader(
         .rst(rst),
         .wr_data_count(),
         .prog_full(prog_full),
+        .prog_empty(prog_empty),
         
         .wr_clk(clk_100Mhz),
         .full(fifo_full),
