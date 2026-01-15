@@ -7,7 +7,7 @@ module Camera_capture(
     input wire href,    
     input wire [7:0] p_data, 
     
-    output reg [15:0] pixel_data,  // 16비트로 수정
+    output reg [15:0] pixel_data, // 12 -> 16비트로 수정 (AXI 규격 맞춤)
     output reg frame_done, // 한 프레임 완성 알림
     output wire [9:0] o_x_count,
     output wire [8:0] o_y_count,
@@ -98,11 +98,13 @@ module Camera_capture(
                         // 짝수 픽셀만 처리 (Downscaling)
                         if (x_count[0] == 0 && y_count[0] == 0) begin
                             // B,G,R 순서로 조립
+                            pixel_data <= {p_data_buf, p_data_r2};
+                            /*
                             pixel_data <= {4'b0000,
                                            p_data_buf[7:4],             
                                            {p_data_buf[2:0], p_data_r2[7]},     // 초록 (Green 4bit - 두 바이트에서 합체)
                                            p_data_r2[4:1]};     // 파랑 (Blue 4bit)
-                            
+                            */
                             x_count_d <= x_count[9:1]; // 다운스케일링 된 좌표
                             y_count_d <= y_count[8:1];
                             pixel_valid <= 1;
