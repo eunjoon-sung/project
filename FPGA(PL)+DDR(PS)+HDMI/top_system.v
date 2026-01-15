@@ -82,31 +82,34 @@ module top_system(
     output wire [7:0]  m_axi_r_arlen,
     output wire [2:0]  m_axi_r_arsize,
     output wire [1:0]  m_axi_r_arburst,
-    input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력
-    input  wire        m_axi_r_rvalid,  // Valid 신호도 입력
+    input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력!
+    input  wire        m_axi_r_rvalid,  // Valid 신호도 입력!
     output wire        m_axi_r_rready,
     input  wire        m_axi_r_rlast
 
     );
     
     // ILA
+    // Verilog는 Scalar(wire)를 Vector(wire [0:0])에 연결해도 에러를 내지 않습니다.
     ila_0 your_ila_instance (
     .clk(clk_100Mhz),             // 반드시 클럭 연결
-    .probe0(m_axi_w_awready),  
-    .probe1(m_axi_w_awvalid),
-    .probe2(m_axi_w_wvalid),
-    .probe3(m_axi_w_wready),
-    .probe4(m_axi_w_wlast),
-    .probe5(w_state),
-    .probe6(m_axi_w_bvalid),
-    .probe7(m_axi_w_bready),
-    .probe8(w_prog_full),
-    .probe9(m_axi_w_awaddr),
-    .probe10(m_axi_w_wdata),
-    .probe11(ADDR_OFFSET)
+    .probe0(m_axi_r_araddr),  // 1비트 wire를 그냥 꽂으세요
+    .probe1(m_axi_r_arvalid),
+    .probe2(m_axi_r_arready),
+    .probe3(m_axi_r_rdata),
+    .probe4(m_axi_r_rvalid),
+    .probe5(r_state),
+    .probe6(m_axi_r_rready),
+    .probe7(m_axi_r_rlast),
+    .probe8(r_ADDR_OFFSET),
+    .probe9(w_frame_done),
+    .probe10(fifo_empty),
+    .probe11(rd_enable)
     
 );
     
+    
+    //assign o_clk_100Mhz = clk_100Mhz;
     
     
     // -------------------------------------------------------
@@ -247,6 +250,8 @@ module top_system(
     wire w_prog_full;
     wire [1:0] w_state;
     wire [31:0] ADDR_OFFSET;
+    
+    wire writer_done;
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
     // -------------------------------------------------------
@@ -279,10 +284,18 @@ module top_system(
         .BVALID(m_axi_w_bvalid),
         .BREADY(m_axi_w_bready),
         
+        .writer_done(writer_done),
+        .buf_select(buf_select),
+
+        
         .o_prog_full(w_prog_full), // debugging 용,
         .state(w_state),
         .ADDR_OFFSET(ADDR_OFFSET)
     );
+    
+    wire buf_select;
+    
+    assign buf_select = (writer_done)? 1:0;
 
     
     // -------------------------------------------------------
@@ -294,13 +307,16 @@ module top_system(
     wire rd_enable;
     wire fifo_empty;
     
+    wire [1:0] r_state;
+    wire [31:0] r_ADDR_OFFSET;
+
+    
     
     AXI4_reader u_AXI_rd(
         // 1. System Inputs
-        .clk_25Mhz(clk_25Mhz),     
+        .clk_25Mhz(clk_25Mhz),          // [수정] 모듈 포트명에 맞춤 (외부 25MHz 연결)
         .clk_100Mhz(clk_100Mhz),   // AXI Clock
         .rst(!camera_reset_reg),
-        .frame_done(w_frame_done), // 주소 리셋용 (vsync)
         
         // 2. Video Interface (VTG로 감)
         .pixel_data(pixel_data),
@@ -318,12 +334,21 @@ module top_system(
         .RDATA(m_axi_r_rdata),
         .RVALID(m_axi_r_rvalid),
         .RREADY(m_axi_r_rready),
-        .RLAST(m_axi_r_rlast)
+        .RLAST(m_axi_r_rlast),
+        
+        .buf_select(buf_select),
+        .vsync_start_pulse(vsync_start_pulse),
+        
+        
+        .state(r_state),
+        .ADDR_OFFSET(r_ADDR_OFFSET)
         );
     
     // -------------------------------------------------------
     // 7. Video timing Generator.v + HDMI module
     // -------------------------------------------------------
+    
+    wire vsync_start_pulse;
     
     Video_timing_generator u_Video_timing_gen (
         .clk(clk_25Mhz),
@@ -333,7 +358,9 @@ module top_system(
         .vsync(o_vsync),
         .de(o_de),
         .rd_enable(rd_enable),
-        .rgb_data(rgb_data)
+        .rgb_data(rgb_data),
+        .vsync_start_pulse(vsync_start_pulse)
+
     );
     
     
