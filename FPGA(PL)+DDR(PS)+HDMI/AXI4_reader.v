@@ -24,10 +24,12 @@ module AXI4_reader(
     input wire RLAST,
     input wire [AXI_DATA_WIDTH -1 : 0] RDATA, // fifo input
     output wire [3:0] ARCACHE,
+    output wire [2:0] ARPROT,
+    input wire [1:0] RRESP,
     
     input wire buf_select,
     input wire vsync_sync2,
-    input wire wire [31:0] FRAME_BASE_ADDR,
+    input wire [31:0] FRAME_BASE_ADDR,
     
     // Debugging
     output reg [1:0] state,
@@ -54,6 +56,7 @@ module AXI4_reader(
     assign ARSIZE  = 3'b011;   // 8 Byte (64bit)
     assign ARBURST = 2'b01;    // INCR
     assign ARCACHE = 4'b0011;
+    assign ARPROT = 3'b000;
     
     // FSM state
     reg [1:0] next_state;
