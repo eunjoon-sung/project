@@ -10,6 +10,8 @@ module Video_timing_generator(
     output wire vsync,
     output wire de, // DATA Enable 신호. 화면 나오는 구간에 1 됨. To HDMI_Tx
 
+    output wire vsync_start_pulse,
+
     output wire rd_enable, // fifo 읽어오는 신호
     output reg [23:0] rgb_data // R,G,B 각각 8비트. why 8bit?? HDMI 규격이 최소 8비트(RGB888)를 기본으로 사용하기 때문
     );
@@ -33,7 +35,7 @@ module Video_timing_generator(
     assign de = !(h_count >= 640 || v_count >= 480);
     
     assign rd_enable = (h_count[0] == 1 && v_count[0] == 0) && !(h_count >= 640 || v_count >= 480); // fifo 읽어오는 신호
-    
+    assign vsync_start_pulse = (v_count == 490) && (h_count == 0);
 
     localparam IDLE = 0;
     localparam SENDING = 1;
