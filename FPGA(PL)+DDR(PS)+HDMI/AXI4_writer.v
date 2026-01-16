@@ -201,7 +201,7 @@ module AXI4_writer(
     
     // FIFO DUT
     fifo_generator_0 u_fifo_writer(
-        .rst(rst),
+        .rst(rst || frame_done),
         .rd_data_count(rd_data_count),
         .prog_full(prog_full),
         
