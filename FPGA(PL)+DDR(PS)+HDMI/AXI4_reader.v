@@ -51,7 +51,7 @@ module AXI4_reader(
     end
 
     // AXI Constants
-    assign ARLEN   = 8'd79;    // 64 Burst
+    assign ARLEN   = 8'd63;    // 64 Burst
     assign ARSIZE  = 3'b011;   // 8 Byte (64bit)
     assign ARBURST = 2'b01;    // INCR
     assign ARCACHE = 4'b0011;
