@@ -27,6 +27,7 @@ module AXI4_reader(
     
     input wire buf_select,
     input wire vsync_sync2,
+    input wire wire [31:0] FRAME_BASE_ADDR,
     
     // Debugging
     output reg [1:0] state,
@@ -37,8 +38,6 @@ module AXI4_reader(
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
     
-    // 더블 프레임 버퍼
-    wire [31:0] FRAME_BASE_ADDR;
     reg buf_select_reg;
     
     always @(posedge clk_100Mhz) begin
@@ -49,13 +48,12 @@ module AXI4_reader(
             buf_select_reg <= buf_select;
         end
     end
-    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0110_0000 : 32'h0100_0000;    
 
     // AXI Constants
     assign ARLEN   = 8'd63;    // 64 Burst
     assign ARSIZE  = 3'b011;   // 8 Byte (64bit)
     assign ARBURST = 2'b01;    // INCR
-    assign ARCACHE = 4'b1111;
+    assign ARCACHE = 4'b0011;
     
     // FSM state
     reg [1:0] next_state;
