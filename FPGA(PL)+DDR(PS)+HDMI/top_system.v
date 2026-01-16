@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-
 module top_system(
 
     input wire sys_clk,
@@ -91,7 +90,9 @@ module top_system(
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_r ARPROT" *)
     output wire [2:0]  m_axi_r_arprot,
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_r ARCACHE" *)
-    output wire [3:0]  m_axi_r_arcache
+    output wire [3:0]  m_axi_r_arcache,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_r RRESP" *)   
+    input  wire [1:0]  m_axi_r_rresp
 
     );
     
@@ -369,7 +370,8 @@ module top_system(
         .RDATA(m_axi_r_rdata),
         .RVALID(m_axi_r_rvalid),
         .RREADY(m_axi_r_rready),
-        .RLAST(m_axi_r_rlast),
+        .RLAST(m_axi_r_rlast),,
+        .RRESP(m_axi_r_rresp),
         
         .buf_select(buf_select), // from top
         .vsync_sync2(vsync_sync2), // from VTG
