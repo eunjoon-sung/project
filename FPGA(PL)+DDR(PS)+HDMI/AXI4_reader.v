@@ -113,7 +113,9 @@ module AXI4_reader(
                 DATA_READ: begin // pixel 256개 한번에 fifo로 들어옴 (burst = 64)
                     RREADY <= 1;  // RVALID == 1 이면 fifo의 wr_en 신호 on
                     if (RLAST && RVALID) begin
-                        ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                        if (ADDR_OFFSET < 32'd153088) begin // 아직 덜 읽었을 때만 주소 증가
+                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                        end
                         RREADY <= 0;
                     end
                 end
@@ -140,7 +142,14 @@ module AXI4_reader(
             
             DATA_READ: begin
                 if (RLAST && RVALID) begin
-                    next_state = IDLE;
+                    if (ADDR_OFFSET >= 32'd153088) begin // (300 * 512 = 153600, 근데 마지막 시작점은 153088)
+                         // 한 프레임 다 읽었으면 VSYNC가 와서 강제로 IDLE로 보낼 때까지 대기
+                         next_state = state;
+                    end
+                    else begin
+                         // 아직 덜 읽었으면 계속 읽기
+                         next_state = IDLE; 
+                    end
                 end
             end
         endcase
@@ -149,7 +158,7 @@ module AXI4_reader(
 
     
     fifo_generator_1 u_fifo_reader (
-        .rst(rst),
+        .rst(rst || vsync_sync2),
         .wr_data_count(),
         .prog_full(prog_full),
         .prog_empty(prog_empty),
