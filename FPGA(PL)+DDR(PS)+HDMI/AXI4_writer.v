@@ -33,6 +33,7 @@ module AXI4_writer(
     // 3. 응답 채널
     input wire BVALID,
     output wire BREADY,
+    input wire [1:0] BRESP, // [추가] 이 줄을 꼭 넣어야 합니다!
     
     output reg writer_done,
     input wire buf_select,
@@ -54,11 +55,11 @@ module AXI4_writer(
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
 
-    assign AWLEN   = 8'd63;    // Burst Length = 64 (0~63)
+    assign AWLEN   = 8'd79;     // 80번 전송 (0부터 시작하므로 79), 80 beat * 8 byte = 640 byte (정확히 320픽셀)
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
     assign AWCACHE = 4'b0011; // DDR 컨트롤러 활성화 
-    assign AWPROT  = 3'b010;  // 보안 검사 통과용
+    assign AWPROT  = 3'b000;  // 보안 검사 통과용
     assign WSTRB   = 8'hFF;    // 모든 바이트 유효
     
     // WREADY신호에 바로 전달되어야 하므로 wire로 연결해줌
@@ -138,11 +139,11 @@ module AXI4_writer(
                     if (fifo_rd_en) begin // "FWFT mode" 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 나와있는 상태.
                         data_count <= data_count + 1;
                         
-                        if (data_count == 62) begin
+                        if (data_count == 78) begin
                             WLAST <= 1'b1;
                         end
                         
-                        if (data_count == 63) begin
+                        if (data_count == 79) begin
                             data_count <= 0;
                             WLAST <= 0;
                             WVALID <= 0; // 64번 데이터 전송 (총 256픽셀)
@@ -159,7 +160,7 @@ module AXI4_writer(
                         end
                         else begin
                             writer_done <= 0;
-                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
+                            ADDR_OFFSET <= ADDR_OFFSET + 32'd640;
                         end
                     end
                 end
@@ -184,7 +185,7 @@ module AXI4_writer(
             end
             
             DATA_SEND: begin
-                if (data_count == 63 && WREADY == 1) begin
+                if (data_count == 79 && WREADY == 1) begin
                     next_state = WAIT_RES;
                 end
             end
