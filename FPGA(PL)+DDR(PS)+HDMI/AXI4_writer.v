@@ -10,6 +10,7 @@ module AXI4_writer(
     input wire [15:0] mixed_data, // from Chroma_key_mixer.v
     input wire pixel_valid, // from Camera_capture.v
     input wire frame_done, 
+    input wire [31:0] FRAME_BASE_ADDR,
     
     // AXI master port
     // 1. 주소 채널
@@ -56,7 +57,7 @@ module AXI4_writer(
     assign AWLEN   = 8'd63;    // Burst Length = 64 (0~63)
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
-    assign AWCACHE = 4'b1111; // DDR 컨트롤러 활성화 
+    assign AWCACHE = 4'b0011; // DDR 컨트롤러 활성화 
     assign AWPROT  = 3'b010;  // 보안 검사 통과용
     assign WSTRB   = 8'hFF;    // 모든 바이트 유효
     
@@ -73,8 +74,6 @@ module AXI4_writer(
     wire fifo_rd_en;
     wire [8:0] rd_data_count;
     
-    // 더블 프레임 버퍼
-    wire [31:0] FRAME_BASE_ADDR;
     reg buf_select_reg;
     
     always @(posedge clk_100Mhz) begin
@@ -86,10 +85,7 @@ module AXI4_writer(
             buf_select_reg <= buf_select; 
         end
     end
-    
-    assign FRAME_BASE_ADDR = (buf_select_reg)? 32'h0100_0000 : 32'h0110_0000;    
-    
-    
+        
     localparam IDLE = 0;
     localparam ADDR_SEND = 1;
     localparam DATA_SEND = 2;
