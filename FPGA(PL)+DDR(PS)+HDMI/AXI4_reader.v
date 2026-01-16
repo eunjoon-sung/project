@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-
 module AXI4_reader(
     input wire rst,
     input wire clk_100Mhz, // fifo write clk (axi)
@@ -52,7 +51,7 @@ module AXI4_reader(
     end
 
     // AXI Constants
-    assign ARLEN   = 8'd63;    // 64 Burst
+    assign ARLEN   = 8'd79;    // 64 Burst
     assign ARSIZE  = 3'b011;   // 8 Byte (64bit)
     assign ARBURST = 2'b01;    // INCR
     assign ARCACHE = 4'b0011;
