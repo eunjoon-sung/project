@@ -370,7 +370,7 @@ module top_system(
         .RDATA(m_axi_r_rdata),
         .RVALID(m_axi_r_rvalid),
         .RREADY(m_axi_r_rready),
-        .RLAST(m_axi_r_rlast),,
+        .RLAST(m_axi_r_rlast),
         .RRESP(m_axi_r_rresp),
         
         .buf_select(buf_select), // from top
