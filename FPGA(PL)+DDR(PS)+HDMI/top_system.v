@@ -72,6 +72,8 @@ module top_system(
     input  wire        m_axi_w_bvalid,  
     (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w BREADY" *)
     output wire        m_axi_w_bready,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_w BRESP" *)
+    input wire [1:0]   m_axi_w_bresp,
     
     
 
@@ -85,7 +87,11 @@ module top_system(
     input  wire [63:0] m_axi_r_rdata,   // 읽어온 데이터는 입력!
     input  wire        m_axi_r_rvalid,  // Valid 신호도 입력!
     output wire        m_axi_r_rready,
-    input  wire        m_axi_r_rlast
+    input  wire        m_axi_r_rlast,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_r ARPROT" *)
+    output wire [2:0]  m_axi_r_arprot,
+    (* X_INTERFACE_INFO = "xilinx.com:interface:aximm:1.0 m_axi_r ARCACHE" *)
+    output wire [3:0]  m_axi_r_arcache
 
     );
     
@@ -281,6 +287,7 @@ module top_system(
         
         .BVALID(m_axi_w_bvalid),
         .BREADY(m_axi_w_bready),
+        .BRESP(m_axi_w_bresp), // [추가]
         
         .writer_done(writer_done),
         .buf_select(buf_select), // from top
@@ -355,6 +362,9 @@ module top_system(
         .ARLEN(m_axi_r_arlen),
         .ARSIZE(m_axi_r_arsize),
         .ARBURST(m_axi_r_arburst),
+        
+        .ARPROT(m_axi_r_arprot),
+        .ARCACHE(m_axi_r_arcache),
     
         .RDATA(m_axi_r_rdata),
         .RVALID(m_axi_r_rvalid),
