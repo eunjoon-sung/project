@@ -105,7 +105,8 @@ module top_system(
     .probe9(vsync_sync2),
     .probe10(m_axi_r_araddr),
     .probe11(buf_select_reg),
-    .probe12(writer_done_reg)
+    .probe12(writer_done_reg),
+    .probe13(m_axi_w_wdata)
     
 );
     
@@ -287,8 +288,10 @@ module top_system(
         
         .o_prog_full(w_prog_full), // debugging 용,
         .state(w_state),
-        .ADDR_OFFSET(w_ADDR_OFFSET)
+        .ADDR_OFFSET(w_ADDR_OFFSET),
+        .FRAME_BASE_ADDR(w_FRAME_BASE_ADDR)
     );
+    wire [31:0] w_FRAME_BASE_ADDR;
     wire writer_done;
     wire buf_select;
     reg buf_select_reg;
@@ -314,6 +317,9 @@ module top_system(
             end
         end
     end
+    
+    assign w_FRAME_BASE_ADDR = (buf_select_reg == 1'b0) ? 32'h0100_0000 : 32'h0110_0000;
+    assign r_FRAME_BASE_ADDR = (buf_select_reg == 1'b0) ? 32'h0110_0000 : 32'h0100_0000;
 
     // -------------------------------------------------------
     // 6. AXI4 READER (+ Asynchronous FIFO)
@@ -327,6 +333,8 @@ module top_system(
     // for debug
     wire [1:0] r_state;
     wire [31:0] r_ADDR_OFFSET;
+    
+    wire [31:0] r_FRAME_BASE_ADDR;
     
     
     AXI4_reader u_AXI_rd(
@@ -358,7 +366,8 @@ module top_system(
         
         
         .state(r_state),
-        .ADDR_OFFSET(r_ADDR_OFFSET)
+        .ADDR_OFFSET(r_ADDR_OFFSET),
+        .FRAME_BASE_ADDR(r_FRAME_BASE_ADDR)
         );
     
     // -------------------------------------------------------
