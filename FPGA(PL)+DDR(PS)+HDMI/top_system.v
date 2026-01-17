@@ -318,7 +318,7 @@ module top_system(
             if (writer_done) begin
                 writer_done_reg <= 1;
             end
-            // 2. Reader가 화면을 새로 그리려는 시점(0,0)에 flag on이면 스왑
+            // 2. VTG에서 다음 프레임 띄우기 전 구간에서 스왑
             if (vsync_sync2 && writer_done_reg) begin
                 buf_select_reg <= ~buf_select_reg;
                 writer_done_reg <= 0;
