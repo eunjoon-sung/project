@@ -112,9 +112,7 @@ module AXI4_writer(
                     data_count <= 0;
                     writer_done <= 0;
                     AWVALID <= 0;
-                    if (frame_done_pulse) begin
-                        AWADDR <= frame_base_addr_reg + ADDR_OFFSET;
-                    end
+                    AWADDR <= frame_base_addr_reg + ADDR_OFFSET;
                 end
                 
                 ADDR_SEND: begin // 주소는 64번 동안 자동으로 8씩 증가하며 알아서 써짐 (64bit -> 8 byte)
