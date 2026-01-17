@@ -45,7 +45,6 @@ module AXI4_writer(
     
     assign o_prog_full = prog_full;
     
-    reg [1:0] state = 0;
     reg [1:0] next_state = 0;
     reg [7:0] data_count = 0; // 64개 세는 용도
     
