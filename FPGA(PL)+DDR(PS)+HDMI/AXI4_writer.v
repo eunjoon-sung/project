@@ -73,18 +73,6 @@ module AXI4_writer(
     wire [63:0] fifo_data;
     wire fifo_rd_en;
     wire [8:0] rd_data_count;
-    
-    reg buf_select_reg;
-    
-    always @(posedge clk_100Mhz) begin
-        if (rst) begin
-            buf_select_reg <= 0;
-        end
-        else if (frame_done_pulse) begin
-        // 카메라 프레임이 완전히 끝난 그 찰나에만 다음 버퍼로 교체
-            buf_select_reg <= buf_select; 
-        end
-    end
         
     localparam IDLE = 0;
     localparam ADDR_SEND = 1;
