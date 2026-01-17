@@ -87,8 +87,6 @@ module AXI4_writer(
         frame_done_d1 <= frame_done;
     end
     
-    reg [31:0] frame_base_addr_reg;
-
     // 1. sequential logic
     always @(posedge clk_100Mhz or posedge rst) begin
         if (rst) begin
@@ -104,7 +102,6 @@ module AXI4_writer(
             
             if (frame_done_pulse) begin 
                 ADDR_OFFSET <= 0;   // 한 프레임 끝나면 주소 초기화
-                frame_base_addr_reg <= FRAME_BASE_ADDR; // frame base addr 도 이 때 받아놓음. 그리고 idle에서 업데이트
             end
             
             case (state)
@@ -112,7 +109,7 @@ module AXI4_writer(
                     data_count <= 0;
                     writer_done <= 0;
                     AWVALID <= 0;
-                    AWADDR <= frame_base_addr_reg + ADDR_OFFSET;
+                    AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                 end
                 
                 ADDR_SEND: begin // 주소는 64번 동안 자동으로 8씩 증가하며 알아서 써짐 (64bit -> 8 byte)
