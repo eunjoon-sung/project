@@ -53,8 +53,8 @@ module AXI4_writer(
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
-
-    assign AWLEN   = 8'd63;     // 64 burst
+    
+    assign AWLEN = 8'd63; // burst 64
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
     assign AWCACHE = 4'b0011; // DDR 컨트롤러 활성화 
@@ -87,6 +87,13 @@ module AXI4_writer(
         frame_done_d1 <= frame_done;
     end
     
+    //buf_select의 변화를 감지
+    reg buf_select_d1;
+    
+    always @(posedge clk_100Mhz) begin
+        buf_select_d1 <= buf_select;
+    end
+    
     // 1. sequential logic
     always @(posedge clk_100Mhz or posedge rst) begin
         if (rst) begin
@@ -100,7 +107,7 @@ module AXI4_writer(
         else begin
             state <= next_state;
             
-            if (frame_done_pulse) begin 
+            if (buf_select != buf_select_d1) begin  // [수정]
                 ADDR_OFFSET <= 0;   // 한 프레임 끝나면 주소 초기화
             end
             
@@ -160,7 +167,8 @@ module AXI4_writer(
         next_state = state;
         case (state)
             IDLE: begin
-                if (prog_full) begin
+            //if ((rd_data_count >= 256) && (writer_done == 1'b0)) begin << 안전장치
+                if (rd_data_count >= 64) begin // [수정]
                     next_state = ADDR_SEND;
                 end
             end
@@ -172,7 +180,7 @@ module AXI4_writer(
             end
             
             DATA_SEND: begin
-                if (data_count == 63 && WREADY == 1) begin
+                if (data_count == 255 && WREADY == 1) begin
                     next_state = WAIT_RES;
                 end
             end
@@ -185,6 +193,7 @@ module AXI4_writer(
         endcase
     end
     
+    wire [10:0] rd_data_count;
     
     // FIFO DUT
     fifo_generator_0 u_fifo_writer(
