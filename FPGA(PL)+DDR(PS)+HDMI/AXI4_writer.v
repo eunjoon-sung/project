@@ -180,7 +180,7 @@ module AXI4_writer(
             end
             
             DATA_SEND: begin
-                if (data_count == 255 && WREADY == 1) begin
+                if (data_count == 63 && WREADY == 1) begin
                     next_state = WAIT_RES;
                 end
             end
@@ -197,7 +197,7 @@ module AXI4_writer(
     
     // FIFO DUT
     fifo_generator_0 u_fifo_writer(
-        .rst(rst || frame_done),
+        .rst(rst),
         .rd_data_count(rd_data_count),
         .prog_full(prog_full),
         
