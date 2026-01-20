@@ -140,14 +140,13 @@ module AXI4_writer(
                 
                 WAIT_RES: begin
                     if (BREADY && BVALID == 1) begin
-                            // FIFO가 비었는지 따지지 말고, 주소 카운트가 끝에 도달했는지만 확인
-                        if (ADDR_OFFSET >= 32'd153088) begin 
-                            writer_done <= 1;
-                            ADDR_OFFSET <= 0;
+                        if (ADDR_OFFSET < 32'd153088) begin 
+                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
+                            writer_done <= 0;
                         end
                         else begin
-                            writer_done <= 0;
-                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
+                            // 끝에 도달하면 더 이상 증가시키지 않고 유지 (발산 방지)
+                            writer_done <= 1; 
                         end
                     end
                 end
