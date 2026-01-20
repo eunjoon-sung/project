@@ -53,8 +53,8 @@ module AXI4_writer(
     // AXI4 Master parameter, constant
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
-    
-    assign AWLEN = 8'd63; // burst 64
+
+    assign AWLEN   = 8'd63;     // 64 burst
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
     assign AWCACHE = 4'b0011; // DDR 컨트롤러 활성화 
@@ -87,15 +87,6 @@ module AXI4_writer(
         frame_done_d1 <= frame_done;
     end
     
-    //buf_select의 변화를 감지
-    reg buf_select_d1;
-    always @(posedge clk_100Mhz) begin
-        buf_select_d1 <= buf_select;
-    end
-    
-    // ddr이 write 끝내고 모니터가 다음 프레임 시작 전까지는 시작하지 못하게 하기 위함.
-    reg writer_done_r1; 
-    
     // 1. sequential logic
     always @(posedge clk_100Mhz or posedge rst) begin
         if (rst) begin
@@ -105,14 +96,12 @@ module AXI4_writer(
             ADDR_OFFSET <= 0;
             AWVALID <= 0; WVALID <= 0;
             writer_done <= 0;
-            writer_done_r1 <= 0;
         end
         else begin
             state <= next_state;
             
-            if (buf_select != buf_select_d1) begin 
+            if (frame_done_pulse) begin 
                 ADDR_OFFSET <= 0;   // 한 프레임 끝나면 주소 초기화
-                writer_done_r1 <= 0;
             end
             
             case (state)
@@ -154,7 +143,6 @@ module AXI4_writer(
                             // FIFO가 비었는지 따지지 말고, 주소 카운트가 끝에 도달했는지만 확인
                         if (ADDR_OFFSET >= 32'd153088) begin 
                             writer_done <= 1;
-                            writer_done_r1 <= 1;
                             ADDR_OFFSET <= 0;
                         end
                         else begin
@@ -172,7 +160,7 @@ module AXI4_writer(
         next_state = state;
         case (state)
             IDLE: begin
-                if ((rd_data_count >= 64) && (writer_done_r1 == 1'b0)) begin // writer done 이 1일 때는 출발 x
+                if (prog_full) begin
                     next_state = ADDR_SEND;
                 end
             end
@@ -197,11 +185,10 @@ module AXI4_writer(
         endcase
     end
     
-    wire [10:0] rd_data_count;
     
     // FIFO DUT
     fifo_generator_0 u_fifo_writer(
-        .rst(rst),
+        .rst(rst || frame_done),
         .rd_data_count(rd_data_count),
         .prog_full(prog_full),
         
