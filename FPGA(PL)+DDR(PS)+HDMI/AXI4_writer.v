@@ -89,10 +89,12 @@ module AXI4_writer(
     
     //buf_select의 변화를 감지
     reg buf_select_d1;
-    
     always @(posedge clk_100Mhz) begin
         buf_select_d1 <= buf_select;
     end
+    
+    // ddr이 write 끝내고 모니터가 다음 프레임 시작 전까지는 시작하지 못하게 하기 위함.
+    reg writer_done_r1; 
     
     // 1. sequential logic
     always @(posedge clk_100Mhz or posedge rst) begin
@@ -103,12 +105,14 @@ module AXI4_writer(
             ADDR_OFFSET <= 0;
             AWVALID <= 0; WVALID <= 0;
             writer_done <= 0;
+            writer_done_r1 <= 0;
         end
         else begin
             state <= next_state;
             
-            if (buf_select != buf_select_d1) begin  // [수정]
+            if (buf_select != buf_select_d1) begin 
                 ADDR_OFFSET <= 0;   // 한 프레임 끝나면 주소 초기화
+                writer_done_r1 <= 0;
             end
             
             case (state)
@@ -150,6 +154,7 @@ module AXI4_writer(
                             // FIFO가 비었는지 따지지 말고, 주소 카운트가 끝에 도달했는지만 확인
                         if (ADDR_OFFSET >= 32'd153088) begin 
                             writer_done <= 1;
+                            writer_done_r1 <= 1;
                             ADDR_OFFSET <= 0;
                         end
                         else begin
@@ -167,8 +172,7 @@ module AXI4_writer(
         next_state = state;
         case (state)
             IDLE: begin
-            //if ((rd_data_count >= 256) && (writer_done == 1'b0)) begin << 안전장치
-                if (rd_data_count >= 64) begin // [수정]
+                if ((rd_data_count >= 64) && (writer_done_r1 == 1'b0)) begin // writer done 이 1일 때는 출발 x
                     next_state = ADDR_SEND;
                 end
             end
