@@ -35,13 +35,9 @@ module AXI4_writer(
     output wire BREADY,
     input wire [1:0] BRESP, // [추가] 이 줄을 꼭 넣어야 합니다!
     
-    output reg writer_done,
-    input wire buf_select,
-    
     output wire o_prog_full,
     output reg [1:0] state,
-    output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET,
-    output wire fifo_overflow
+    output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET
     );
     
     assign o_prog_full = prog_full;
@@ -96,7 +92,6 @@ module AXI4_writer(
             AWADDR <= FRAME_BASE_ADDR;
             ADDR_OFFSET <= 0;
             AWVALID <= 0; WVALID <= 0;
-            writer_done <= 0;
         end
         else begin
             state <= next_state;
@@ -108,7 +103,6 @@ module AXI4_writer(
                 case (state)
                     IDLE: begin
                         data_count <= 0;
-                        writer_done <= 0;
                         AWVALID <= 0;
                         AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                     end
@@ -143,11 +137,6 @@ module AXI4_writer(
                         if (BREADY && BVALID == 1) begin
                             if (ADDR_OFFSET < 32'd153088) begin 
                                 ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
-                                writer_done <= 0;
-                            end
-                            else begin
-                                // 끝에 도달하면 더 이상 증가시키지 않고 유지 (발산 방지)
-                                writer_done <= 1; 
                             end
                         end
                     end
@@ -192,7 +181,6 @@ module AXI4_writer(
         .rst(rst),
         .rd_data_count(rd_data_count),
         .prog_full(prog_full),
-        .overflow(fifo_overflow),
         
         .wr_clk(pclk),
         .full(fifo_full),
