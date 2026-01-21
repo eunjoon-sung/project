@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 module top_system(
-
     input wire sys_clk,
     input wire sys_rst_n,     // 보드 리셋 버튼 (Active Low 가정)
     
@@ -106,14 +105,12 @@ module top_system(
     .probe3(m_axi_w_awready),
     .probe4(m_axi_w_wvalid),
     .probe5(m_axi_w_wready),
-    .probe6(writer_done),
+    .probe6(m_axi_w_wdata),
     .probe7(w_ADDR_OFFSET),
     .probe8(r_ADDR_OFFSET),
     .probe9(vsync_sync2),
     .probe10(m_axi_r_araddr),
-    .probe11(buf_select_reg),
-    .probe12(writer_done_reg),
-    .probe13(m_axi_w_wdata)
+    .probe11(buf_select_reg)
     
 );
     
@@ -150,21 +147,6 @@ module top_system(
         end
     end
     
-    // -------------------------------------------------------
-    // 2. Clock Wizard (기본 50MHz)
-    // -------------------------------------------------------
-    
-    /*
-    // Block Design 에서 선언해줄거임
-    clk_wiz_0 u_clock_gen (
-        .clk_in1(sys_clk),     // 25MHz for Capture Logic & Camera XCLK
-        .reset(rst),
-        .locked(locked),
-        .clk_out1(clk_25Mhz),    
-        .clk_out2(clk_125Mhz),   // 125Mhz for HDMI 2.0
-        .clk_out3(clk_100Mhz)   // 100Mhz for DDR Memory
-    );
-    */
         
     // 카메라 기본 신호 연결
     assign ov7670_xclk = clk_25Mhz; // 카메라에게 MCLK 공급
@@ -251,16 +233,75 @@ module top_system(
     .o_pixel_valid(w_o_pixel_valid)
     
     );
+
     
-    wire w_o_pixel_valid;
-    wire w_prog_full;
-    wire [1:0] w_state;
-    wire [31:0] w_ADDR_OFFSET;
+    // -----------------------------------------------------------
+    // [Triple Buffering Logic] Double Buffering 버림.
+    // -----------------------------------------------------------
+    
+    reg w_frame_done_d1, w_frame_done_d2;
+    wire w_frame_done_pulse;
+    
+    always @(posedge clk_100Mhz) begin
+        if (rst) begin
+             w_frame_done_d1 <= 0;
+             w_frame_done_d2 <= 0;
+        end else begin
+             w_frame_done_d1 <= w_frame_done;      // 1. 싱크 맞추기
+             w_frame_done_d2 <= w_frame_done_d1;   // 2. 딜레이
+        end
+    end
+    // 상승 엣지 검출
+    assign w_frame_done_pulse = w_frame_done_d1 & ~w_frame_done_d2;
+    
+    reg [31:0] writer_room;      // Writer가 현재 쓰고 있는 방
+    reg [31:0] reader_room;      // Reader가 현재 읽고 있는 방    
+    reg [31:0] update_room;      // Writer가 쓰기를 완료한 최신 방
+    
+    assign w_FRAME_BASE_ADDR = writer_room;
+    assign r_FRAME_BASE_ADDR = reader_room;
+    
+    localparam ROOM1 = 32'h0100_0000;
+    localparam ROOM2 = 32'h0110_0000;
+    localparam ROOM3 = 32'h0120_0000;
+    
+    always @(posedge clk_100Mhz or posedge rst) begin
+        if (rst) begin
+            writer_room <= ROOM1;
+            reader_room <= ROOM3;
+            update_room <= ROOM3;
+        end
+        else begin
+            if (w_frame_done_pulse) begin
+                update_room <= writer_room;
+                // writer는 1 -> 2-> 3 방 바꿔가며 쓰도록 만듦
+                if (writer_room == ROOM1) begin
+                    writer_room <= ROOM2;
+                end
+                else if (writer_room == ROOM2) begin
+                    writer_room <= ROOM3;
+                end
+                else if (writer_room == ROOM3) begin
+                    writer_room <= ROOM1;
+                end
+            end
+            
+            if (vsync_sync2) begin
+               reader_room <= update_room;
+            end
+        end
+    end
     
     // -------------------------------------------------------
     // 5. AXI4 WRITER (+ Asynchronous FIFO)
     // -------------------------------------------------------
-    
+    wire w_o_pixel_valid;
+    wire w_prog_full;
+    wire [1:0] w_state;
+    wire [31:0] w_ADDR_OFFSET;
+    wire [31:0] w_FRAME_BASE_ADDR;
+
+    wire fifo_overflow;
     
     AXI4_writer u_AXI_wr(
         .pclk(ov7670_pclk),
@@ -290,44 +331,12 @@ module top_system(
         .BREADY(m_axi_w_bready),
         .BRESP(m_axi_w_bresp), // [추가]
         
-        .writer_done(writer_done),
-        .buf_select(buf_select), // from top
-
-        
         .o_prog_full(w_prog_full), // debugging 용,
         .state(w_state),
         .ADDR_OFFSET(w_ADDR_OFFSET),
         .FRAME_BASE_ADDR(w_FRAME_BASE_ADDR)
     );
-    wire [31:0] w_FRAME_BASE_ADDR;
-    wire writer_done;
-    wire buf_select;
-    reg buf_select_reg;
-    reg writer_done_reg;
-    
-    assign buf_select = buf_select_reg;
-    
-    // wire 신호 클럭에 동기화시킴
-    
-    always @(posedge clk_100Mhz or posedge rst) begin
-        if (rst) begin
-            buf_select_reg <= 0;
-            writer_done_reg <= 0;
-        end else begin
-            // 1. Writer가 완료되면 1
-            if (writer_done) begin
-                writer_done_reg <= 1;
-            end
-            // 2. VTG에서 다음 프레임 띄우기 전 구간에서 스왑
-            if (vsync_sync2 && writer_done_reg) begin
-                buf_select_reg <= ~buf_select_reg;
-                writer_done_reg <= 0;
-            end
-        end
-    end
-    
-    assign w_FRAME_BASE_ADDR = (buf_select_reg == 1'b0) ? 32'h0100_0000 : 32'h0110_0000;
-    assign r_FRAME_BASE_ADDR = (buf_select_reg == 1'b0) ? 32'h0110_0000 : 32'h0100_0000;
+
 
     // -------------------------------------------------------
     // 6. AXI4 READER (+ Asynchronous FIFO)
@@ -341,13 +350,12 @@ module top_system(
     // for debug
     wire [1:0] r_state;
     wire [31:0] r_ADDR_OFFSET;
-    
     wire [31:0] r_FRAME_BASE_ADDR;
     
     
     AXI4_reader u_AXI_rd(
         // 1. System Inputs
-        .clk_25Mhz(clk_25Mhz),          // [수정] 모듈 포트명에 맞춤 (외부 25MHz 연결)
+        .clk_25Mhz(clk_25Mhz),
         .clk_100Mhz(clk_100Mhz),   // AXI Clock
         .rst(!camera_reset_reg),
         
@@ -373,13 +381,13 @@ module top_system(
         .RLAST(m_axi_r_rlast),
         .RRESP(m_axi_r_rresp),
         
-        .buf_select(buf_select), // from top
         .vsync_sync2(vsync_sync2), // from VTG
         
-        
+        // DEBUG
         .state(r_state),
         .ADDR_OFFSET(r_ADDR_OFFSET),
         .FRAME_BASE_ADDR(r_FRAME_BASE_ADDR)
+        
         );
     
     // -------------------------------------------------------
