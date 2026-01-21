@@ -40,7 +40,8 @@ module AXI4_writer(
     
     output wire o_prog_full,
     output reg [1:0] state,
-    output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET
+    output reg [AXI_ADDR_WIDTH -1 : 0] ADDR_OFFSET,
+    output wire fifo_overflow
     );
     
     assign o_prog_full = prog_full;
@@ -103,54 +104,55 @@ module AXI4_writer(
             if (frame_done_pulse) begin 
                 ADDR_OFFSET <= 0;   // 한 프레임 끝나면 주소 초기화
             end
-            
-            case (state)
-                IDLE: begin
-                    data_count <= 0;
-                    writer_done <= 0;
-                    AWVALID <= 0;
-                    AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
-                end
-                
-                ADDR_SEND: begin // 주소는 64번 동안 자동으로 8씩 증가하며 알아서 써짐 (64bit -> 8 byte)
-                    if (AWVALID && AWREADY) begin // valid, ready 둘 다 1인 순간 모두 전송됨
+            else begin
+                case (state)
+                    IDLE: begin
+                        data_count <= 0;
+                        writer_done <= 0;
                         AWVALID <= 0;
+                        AWADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
                     end
-                    else begin
-                        AWVALID <= 1;
-                    end
-                end
-                
-                DATA_SEND: begin
-                    WVALID <= 1;
-                    if (fifo_rd_en) begin // "FWFT mode" 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 나와있는 상태.
-                        data_count <= data_count + 1;
-                        
-                        if (data_count == 62) begin
-                            WLAST <= 1'b1;
-                        end
-                        
-                        if (data_count == 63) begin
-                            data_count <= 0;
-                            WLAST <= 0;
-                            WVALID <= 0; // 64번 데이터 전송 (총 256픽셀)
-                        end
-                    end
-                end
-                
-                WAIT_RES: begin
-                    if (BREADY && BVALID == 1) begin
-                        if (ADDR_OFFSET < 32'd153088) begin 
-                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
-                            writer_done <= 0;
+                    
+                    ADDR_SEND: begin // 주소는 64번 동안 자동으로 8씩 증가하며 알아서 써짐 (64bit -> 8 byte)
+                        if (AWVALID && AWREADY) begin // valid, ready 둘 다 1인 순간 모두 전송됨
+                            AWVALID <= 0;
                         end
                         else begin
-                            // 끝에 도달하면 더 이상 증가시키지 않고 유지 (발산 방지)
-                            writer_done <= 1; 
+                            AWVALID <= 1;
                         end
                     end
-                end
-             endcase
+                    
+                    DATA_SEND: begin
+                        WVALID <= 1;
+                        if (fifo_rd_en) begin // "FWFT mode" 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 나와있는 상태.
+                            data_count <= data_count + 1;
+                            
+                            if (data_count == 62) begin
+                                WLAST <= 1'b1;
+                            end
+                            
+                            if (data_count == 63) begin
+                                data_count <= 0;
+                                WLAST <= 0;
+                                WVALID <= 0; // 64번 데이터 전송 (총 256픽셀)
+                            end
+                        end
+                    end
+                    
+                    WAIT_RES: begin
+                        if (BREADY && BVALID == 1) begin
+                            if (ADDR_OFFSET < 32'd153088) begin 
+                                ADDR_OFFSET <= ADDR_OFFSET + 32'd512;
+                                writer_done <= 0;
+                            end
+                            else begin
+                                // 끝에 도달하면 더 이상 증가시키지 않고 유지 (발산 방지)
+                                writer_done <= 1; 
+                            end
+                        end
+                    end
+                 endcase
+             end
         end
     end
     
@@ -187,9 +189,10 @@ module AXI4_writer(
     
     // FIFO DUT
     fifo_generator_0 u_fifo_writer(
-        .rst(rst || frame_done),
+        .rst(rst),
         .rd_data_count(rd_data_count),
         .prog_full(prog_full),
+        .overflow(fifo_overflow),
         
         .wr_clk(pclk),
         .full(fifo_full),
