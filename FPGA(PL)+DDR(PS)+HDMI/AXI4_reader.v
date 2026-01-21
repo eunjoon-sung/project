@@ -91,35 +91,35 @@ module AXI4_reader(
             end
             else begin
                 state <= next_state;
-            end
             
-            case (state)
-                IDLE: begin
-                    ARADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
-                end
-                            
-                ADDR_SEND: begin
-                    // 기본적으로 1을 띄움
-                    if (ARVALID == 0) begin
-                        ARVALID <= 1;
+                case (state)
+                    IDLE: begin
+                        ARADDR <= FRAME_BASE_ADDR + ADDR_OFFSET;
+                    end
+                                
+                    ADDR_SEND: begin
+                        // 기본적으로 1을 띄움
+                        if (ARVALID == 0) begin
+                            ARVALID <= 1;
+                        end
+                        
+                        // 핸드셰이크 성립(둘 다 1) 시에만 내림
+                        if (ARVALID && ARREADY) begin
+                            ARVALID <= 0;
+                        end
                     end
                     
-                    // 핸드셰이크 성립(둘 다 1) 시에만 내림
-                    if (ARVALID && ARREADY) begin
-                        ARVALID <= 0;
-                    end
-                end
-                
-                DATA_READ: begin // pixel 256개 한번에 fifo로 들어옴 (burst = 64)
-                    RREADY <= 1;  // RVALID == 1 이면 fifo의 wr_en 신호 on
-                    if (RLAST && RVALID) begin
-                        if (ADDR_OFFSET < 32'd153088) begin // 아직 덜 읽었을 때만 주소 증가
-                            ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                    DATA_READ: begin // pixel 256개 한번에 fifo로 들어옴 (burst = 64)
+                        RREADY <= 1;  // RVALID == 1 이면 fifo의 wr_en 신호 on
+                        if (RLAST && RVALID) begin
+                            if (ADDR_OFFSET < 32'd153088) begin // 아직 덜 읽었을 때만 주소 증가
+                                ADDR_OFFSET <= ADDR_OFFSET + 32'd512; // 픽셀 하나당 16bit -> 주소 공간 2byte 필요. 
+                            end
+                            RREADY <= 0;
                         end
-                        RREADY <= 0;
                     end
-                end
-            endcase
+                endcase
+            end
         end
     end
     
@@ -129,7 +129,7 @@ module AXI4_reader(
         next_state = state;
         case (state)
             IDLE: begin
-                if (prog_empty) begin // FIFO Threshold : prog_empty 사용으로 수정함. 충분히 비었음 일 때 출발
+                if (!prog_full) begin // FIFO Threshold : prog_empty 사용으로 수정함. 충분히 비었음 일 때 출발
                     next_state = ADDR_SEND;
                 end
             end
@@ -153,12 +153,11 @@ module AXI4_reader(
                 end
             end
         endcase
-    
     end
 
     
     fifo_generator_1 u_fifo_reader (
-        .rst(rst || vsync_sync2),
+        .rst(rst),
         .wr_data_count(),
         .prog_full(prog_full),
         .prog_empty(prog_empty),
