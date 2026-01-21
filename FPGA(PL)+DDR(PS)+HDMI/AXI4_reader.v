@@ -26,7 +26,6 @@ module AXI4_reader(
     output wire [2:0] ARPROT,
     input wire [1:0] RRESP,
     
-    input wire buf_select,
     input wire vsync_sync2,
     input wire [31:0] FRAME_BASE_ADDR,
     
@@ -39,16 +38,6 @@ module AXI4_reader(
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
     
-    reg buf_select_reg;
-    
-    always @(posedge clk_100Mhz) begin
-        if (rst) begin
-            buf_select_reg <= 0;
-        end
-        else begin
-            buf_select_reg <= buf_select;
-        end
-    end
 
     // AXI Constants
     assign ARLEN   = 8'd63;    // 64 Burst
