@@ -49,10 +49,10 @@ module AXI4_writer(
     parameter AXI_ADDR_WIDTH = 32;
     parameter AXI_DATA_WIDTH = 64;
 
-    assign AWLEN   = 8'd79;     // 64 burst
+    assign AWLEN   = 8'd15;     // 64 burst
     assign AWSIZE  = 3'b011;   // 8 byte (64 bit)
     assign AWBURST = 2'b01;    // INCR (주소 증가 모드)
-    assign AWCACHE = 4'b0011; // DDR 컨트롤러 활성화 
+    assign AWCACHE = 4'b0010; // DDR 컨트롤러 활성화 
     assign AWPROT  = 3'b000;  // 보안 검사 통과용
     assign WSTRB   = 8'hFF;    // 모든 바이트 유효
     
@@ -67,7 +67,7 @@ module AXI4_writer(
     wire fifo_empty;
     wire [63:0] fifo_data;
     wire fifo_rd_en;
-    wire [8:0] rd_data_count;
+    wire [12:0] rd_data_count;
     
     // fifo reset 신호
     reg [3:0] reset_stretch_cnt; // 펄스를 늘리기 위한 카운터
@@ -83,6 +83,7 @@ module AXI4_writer(
     reg frame_done_d1;
     reg frame_done_d2;
     wire frame_done_pulse = (frame_done_d1 == 1'b1 && frame_done_d2 == 1'b0);
+    wire vsync_negedge = (frame_done_d2 == 1'b1 && frame_done_d1 == 1'b0);
     
     always @(posedge clk_100Mhz) begin
         frame_done_d1 <= frame_done;
@@ -99,16 +100,14 @@ module AXI4_writer(
             AWVALID <= 0; WVALID <= 0;
         end
         else begin
-            if (frame_done_pulse) begin
-                reset_stretch_cnt <= 8'd20; 
-                ADDR_OFFSET <= 0;
+            if (vsync_negedge) begin
+                ADDR_OFFSET <= 0;   // 주소 0x0100_0000 세팅
+                state <= IDLE;      
+                data_count <= 0;
+                AWVALID <= 0; WVALID <= 0;
             end
-            else if (reset_stretch_cnt > 0) begin
-                reset_stretch_cnt <= reset_stretch_cnt - 1;
-            end
-            else if (frame_done_pulse || reset_stretch_cnt > 0) begin
-                    state <= IDLE;
-                    data_count <= 0;
+            else if (frame_done_d2) begin
+                state <= IDLE;
             end
             else begin
                 state <= next_state;
@@ -134,11 +133,11 @@ module AXI4_writer(
                         if (fifo_rd_en) begin // "FWFT mode" 이므로 이 신호는 데이터 받았다는 확인 신호임. wdata는 이미 나와있는 상태.
                             data_count <= data_count + 1;
                             
-                            if (data_count == 78) begin
+                            if (data_count == 14) begin
                                 WLAST <= 1'b1;
                             end
                             
-                            if (data_count == 79) begin
+                            if (data_count == 15) begin
                                 data_count <= 0;
                                 WLAST <= 0;
                                 WVALID <= 0; // 64번 데이터 전송 (총 256픽셀)
@@ -148,8 +147,8 @@ module AXI4_writer(
                     
                     WAIT_RES: begin
                         if (BREADY && BVALID == 1) begin
-                            if (ADDR_OFFSET < 32'd152960) begin // 32'd153088 (64 burst)
-                                ADDR_OFFSET <= ADDR_OFFSET + 32'd640;//32'd512;
+                            if (ADDR_OFFSET < 32'd153472) begin // 32'd153088 (64 burst) , 32'd153472 (16 burst)
+                                ADDR_OFFSET <= ADDR_OFFSET + 32'd128;//32'd512;
                             end
                         end
                     end
@@ -163,7 +162,7 @@ module AXI4_writer(
         next_state = state;
         case (state)
             IDLE: begin
-                if (prog_full) begin
+                if (rd_data_count >= 10'd16) begin
                     next_state = ADDR_SEND;
                 end
             end
@@ -175,7 +174,7 @@ module AXI4_writer(
             end
             
             DATA_SEND: begin
-                if (data_count == 79 && WREADY == 1) begin
+                if (data_count == 15 && WREADY == 1) begin
                     next_state = WAIT_RES;
                 end
             end
@@ -191,7 +190,7 @@ module AXI4_writer(
     
     // FIFO DUT
     fifo_generator_0 u_fifo_writer(
-        .rst(rst || fifo_reset_safe),
+        .rst(rst || frame_done_d2),
         .rd_data_count(rd_data_count),
         .prog_full(prog_full),
         
