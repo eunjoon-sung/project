@@ -99,18 +99,18 @@ module top_system(
     // Verilog는 Scalar(wire)를 Vector(wire [0:0])에 연결해도 에러를 내지 않습니다.
     ila_0 your_ila_instance (
     .clk(clk_100Mhz),             // 반드시 클럭 연결
-    .probe0(m_axi_w_awaddr),  // 1비트 wire를 그냥 꽂으세요
-    .probe1(w_frame_done),
+    .probe0(m_axi_w_awaddr), 
+    .probe1(ov7670_vsync),
     .probe2(m_axi_w_awvalid),
     .probe3(m_axi_w_awready),
     .probe4(m_axi_w_wvalid),
     .probe5(m_axi_w_wready),
     .probe6(m_axi_w_wdata),
-    .probe7(w_ADDR_OFFSET),
-    .probe8(r_ADDR_OFFSET),
+    .probe7(w_x_count),
+    .probe8(w_y_count),
     .probe9(vsync_sync2),
     .probe10(m_axi_r_araddr),
-    .probe11(buf_select_reg)
+    .probe11(m_axi_w_wlast)
     
 );
     
@@ -275,15 +275,22 @@ module top_system(
             if (w_frame_done_pulse) begin
                 update_room <= writer_room;
                 // writer는 1 -> 2-> 3 방 바꿔가며 쓰도록 만듦
-                if (writer_room == ROOM1) begin
-                    writer_room <= ROOM2;
-                end
-                else if (writer_room == ROOM2) begin
-                    writer_room <= ROOM3;
-                end
-                else if (writer_room == ROOM3) begin
-                    writer_room <= ROOM1;
-                end
+                // [수정] Writer가 Reader가 읽고 있는 방에 쓰지 못하도록 회피하는 코드로 바꿈
+                case (writer_room)
+                    ROOM1: begin
+                        if (reader_room == ROOM2) writer_room <= ROOM3;
+                        else writer_room <= ROOM2;                     
+                    end
+                    ROOM2: begin
+                        if (reader_room == ROOM3) writer_room <= ROOM1; 
+                        else writer_room <= ROOM3;
+                    end
+                    ROOM3: begin
+                        if (reader_room == ROOM1) writer_room <= ROOM2;
+                        else writer_room <= ROOM1;
+                    end
+                    default: writer_room <= ROOM1;
+                endcase
             end
             
             if (vsync_sync2) begin
@@ -308,7 +315,7 @@ module top_system(
         .clk_100Mhz(clk_100Mhz),
         .rst(!camera_reset_reg),
         .mixed_data(w_mixed_data), // from Chroma_key_mixer.v
-        .frame_done(w_frame_done), // from Camera_capture.v
+        .frame_done(ov7670_vsync), // from Camera_capture.v [수정] w_frame_done -> ov7670_vsync
         .pixel_valid(w_o_pixel_valid),
     
         // 2. AXI Master Interface
