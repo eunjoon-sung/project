@@ -14,8 +14,10 @@ module Camera_capture(
     output reg pixel_valid // 한 픽셀 완성 알림
     );
     
+    
     assign o_x_count = x_count_d;
     assign o_y_count = y_count_d;
+    
     
     // 내부 변수
     reg [9:0] x_count;
@@ -82,36 +84,32 @@ module Camera_capture(
                 // HREF Falling Edge: 라인 리셋
                 if (href_r2 == 0 && href_r1 == 1) begin 
                     x_count <= 0;
+                    x_count_d <= 0; // [추가]
                     if (y_count < 480) y_count <= y_count + 1;
                     pixel_flag <= 0;
                 end
 
-                if (href_r2 == 1'b1) begin
-                    // (A) 첫 번째 바이트
+                if (href_r2 == 1'b1 || pixel_flag == 1'b1) begin // [수정]
+                    // 첫 번째 바이트
                     if (pixel_flag == 0) begin
                         p_data_buf <= p_data_r2;
                         pixel_flag <= 1;
                     end
                     else begin
                         pixel_flag <= 0;
+
                         
                         // 짝수 픽셀만 처리 (Downscaling)
-                        if (x_count[0] == 0 && y_count[0] == 0) begin
+                        if (x_count[0] == 0 && y_count[0] == 0 && x_count < 640 && y_count < 480) begin
+                            
                             // B,G,R 순서로 조립
                             pixel_data <= {p_data_buf, p_data_r2};
-                            /*
-                            pixel_data <= {4'b0000,
-                                           p_data_buf[7:4],             
-                                           {p_data_buf[2:0], p_data_r2[7]},     // 초록 (Green 4bit - 두 바이트에서 합체)
-                                           p_data_r2[4:1]};     // 파랑 (Blue 4bit)
-                            */
+
                             x_count_d <= x_count[9:1]; // 다운스케일링 된 좌표
                             y_count_d <= y_count[8:1];
+                            
                             pixel_valid <= 1;
-                                          
-                            //pixel_data <= { p_data_buf[3:0], p_data_buf[7:4], p_data_r2[3:0] }; // R, B 자리 바꾸기
-                            //pixel_data <= {p_data_r2[3:0], p_data_buf}; // byte swap 적용
-                            //pixel_data <= {p_data_buf[3:0], p_data_r2};
+
                         end
                         else begin
                             pixel_valid <= 0;
