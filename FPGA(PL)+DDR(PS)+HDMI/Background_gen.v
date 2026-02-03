@@ -1,11 +1,10 @@
 `timescale 1ns / 1ps
 // 들어오는 좌표에 맞춰서 좌표에 맞는 배경을 생성하는 모듈
 // 일단 체크무늬로 만들어볼거임
-// 16비트로 바꿈
 module Background_gen(
 	input wire clk,
 	input wire rst,
-	input wire [8:0]h_count, // x 좌표
+	input wire [9:0]h_count, // x 좌표
 	input wire [8:0]v_count, // y 좌표
 	
 	output reg [15:0] bg_data // background data
