@@ -100,7 +100,7 @@ module top_system(
     ila_0 your_ila_instance (
     .clk(clk_100Mhz),             // 반드시 클럭 연결
     .probe0(m_axi_w_awaddr), 
-    .probe1(ov7670_vsync),
+    .probe1(o_de),
     .probe2(m_axi_w_awvalid),
     .probe3(m_axi_w_awready),
     .probe4(m_axi_w_wvalid),
@@ -110,7 +110,8 @@ module top_system(
     .probe8(w_y_count),
     .probe9(vsync_sync2),
     .probe10(m_axi_r_araddr),
-    .probe11(m_axi_w_wlast)
+    .probe11(o_h_count),
+    .probe12(pixel_data)
     
 );
     
@@ -410,6 +411,7 @@ module top_system(
         vsync_sync2 <= vsync_sync1;
     end
     
+    wire [9:0] o_h_count;
     Video_timing_generator u_Video_timing_gen (
         .clk(clk_25Mhz),
         .rst(!camera_reset_reg),
@@ -419,7 +421,9 @@ module top_system(
         .de(o_de),
         .rd_enable(rd_enable),
         .rgb_data(rgb_data),
-        .vsync_start_pulse(vsync_start_pulse)
+        .vsync_start_pulse(vsync_start_pulse),
+        .o_h_count(o_h_count)
+
 
     );
     
