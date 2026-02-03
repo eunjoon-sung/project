@@ -10,7 +10,6 @@ module OV7670_config_rom(
     always @(posedge clk or posedge rst) begin
         if (rst) dout <= 0;
 			case(addr) 
-
 			0:  dout <= 16'h12_80; //reset
 			1:  dout <= 16'hFF_F0; // delay
 			2:  dout <= 16'h12_04; // COM7,     set RGB color output
@@ -18,7 +17,7 @@ module OV7670_config_rom(
 			4:  dout <= 16'h0C_00; // COM3,     default settings
 			5:  dout <= 16'h3E_00; // COM14,    no scaling, normal pclock
 			6:  dout <= 16'h04_00; // COM1,     disable CCIR656
-			7:  dout <= 16'h40_d0; //COM15,     RGB444, full output range
+			7:  dout <= 16'h40_d0; //COM15,     RGB444, full output range [주의] c0으로 하면 화면 이상하게 나옴
 			8:  dout <= 16'h3a_04; //TSLB       set correct output data sequence (magic)
 			9:  dout <= 16'h14_18; //COM9       MAX AGC value x4
 	/*
@@ -58,10 +57,6 @@ module OV7670_config_rom(
 			31: dout <= 16'h74_00; //REG74      Digital gain control
 			32: dout <= 16'hB0_84; //RSVD       magic value from the internet *required* for good color
 			33: dout <= 16'hB1_0C; //ABLC1
-			//34: dout <= 16'hB2_0E; //RSVD       more magic internet values
-			//35: dout <= 16'hB2_80; //THL_ST
-			//36: dout <= 16'h70_3A;
-			//37: dout <= 16'h71_35;
 			34: dout <= 16'h13_E7; // COM8: AGC(게인), AEC(노출) 켜기! (필수)
 			// [AWB(화이트밸런스)를 위한 필수 튜닝 값]
 			// 이게 없으면 E7을 켜도 색이 이상할 수 있습니다.
@@ -70,6 +65,7 @@ module OV7670_config_rom(
 			// 파란색/빨간색의 이득(Gain) 범위를 지정합니다.
 			35: dout <= 16'h01_F0; // BLUE Gain
 			36: dout <= 16'h02_F0; // RED Gain
+			37: dout <= 16'h6F_9F; // Simple AWB Control Enable // [추가]
 			default: dout <= 16'hFF_FF;         //mark end of ROM
 		endcase
     end
