@@ -15,10 +15,10 @@ module Chroma_key_mixer(
 	output reg o_pixel_valid
     );
     
-    // rgb_data 구조: {4'b0000, R[3:0], G[3:0], B[3:0]}
-    wire [7:0] R_data = {4'b0000, rgb_data[11:8]};
-    wire [7:0] G_data = {4'b0000, rgb_data[7:4]};
-    wire [7:0] B_data = {4'b0000, rgb_data[3:0]};
+    // [수정] rgb_data 구조: {4'b0000, R[3:0], G[3:0], B[3:0]} ---> {R[3:0], G[3:0], B[3:0] , 4'b0000} 
+    wire [7:0] R_data = {rgb_data[11:8], 4'b0000};
+    wire [7:0] G_data = {rgb_data[7:4], 4'b0000};
+    wire [7:0] B_data = {rgb_data[3:0], 4'b0000};
     
     wire [7:0] margin = 8'd3; // 마진이 클수록 더 엄격하게 녹색을 찾게됨.
 
