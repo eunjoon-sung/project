@@ -27,8 +27,10 @@ module SCCB_interface
     localparam CLK_LOW = 3; // sioc_oe 신호 low ---> 이 때 data 를 보냄
     localparam CLK_HIGH = 4; // sioc_oe 신호 high  ---> data 준비
     localparam CHECKING = 5; // 8bit data 보낸 뒤 마지막 1bit X 및 다음 data 준비
-    localparam DONE = 6; // data 보내기 완료
-
+    localparam DONE_READY = 6;
+    localparam DONE_C = 7; 
+    localparam DONE_D = 8;
+    
     localparam CAMERA_ADDR = 8'h42;
     localparam PERIOD = CLK_FREQ / SCCB_FREQ;
     
@@ -71,15 +73,33 @@ module SCCB_interface
                         ready <= 0;
                     end
                 end
+                
                 START_D: begin
                     SIOC_oe <= 0;
                     SIOD_oe <= 1;
+                    
+                    if (count == (PERIOD / 2) - 1) begin
+                        count <= 0;
+                    end
+                    else begin
+                        count <= count + 1;
+                    end
                 end
+                
                 START_C: begin
                     SIOC_oe <= 1;
                     SIOD_oe <= 1;
+                    
+                    if (count == (PERIOD / 2) - 1) begin
+                        count <= 0;
+                    end
+                    else begin
+                        count <= count + 1;
+                    end
                 end
+                
                 CLK_LOW: begin
+                    SIOC_oe <= 1;
                     if (bit_index == 0) begin
                         SIOD_oe <= 0; // 마지막 1 bit : X (Acknowledge bit)
                     end else begin
@@ -102,7 +122,8 @@ module SCCB_interface
                     end
                 end
                 
-                CLK_HIGH: begin // camera에서 data capture
+                CLK_HIGH: begin // data capture
+                    SIOC_oe <= 0;
                     if (count == (PERIOD / 2) - 1) begin
                         count <= 0;
                         bit_index <= bit_index - 1;
@@ -113,10 +134,14 @@ module SCCB_interface
                 end
                 
                 CHECKING: begin
+                    SIOC_oe <= 0; // 클럭 High (ACK 타임)
+                    SIOD_oe <= 0; // 카메라 대답 듣기
                     if (count == (PERIOD / 2) - 1) begin
                         byte_index <= byte_index - 1;
                         if (byte_index == 0) begin
                             byte_index <= 2;
+                            bit_index <= 8;
+                            count <= 0;
                         end else begin
                             bit_index <= 8;
                             count <= 0;
@@ -127,11 +152,43 @@ module SCCB_interface
                     end
                 end
                 
-                DONE: begin
+                // [1단계] DONE_READY: SCL=0, SDA=0 (데이터 변경을 위해 SCL을 내림)
+                DONE_READY: begin
+                    SIOC_oe <= 1; // SCL Low (0) [수정됨: 0->1]
+                    SIOD_oe <= 1; // SDA Low (0) [수정됨: 0->1]
+                    
+                    if (count == (PERIOD / 2) - 1) begin
+                        count <= 0;
+                    end else begin
+                        count <= count + 1;
+                    end
+                end
+            
+                // [2단계] DONE_C: SCL=1, SDA=0 (STOP 조건 셋업 - 클럭만 올림)
+                DONE_C: begin
+                    SIOC_oe <= 0; // SCL High (1) [수정됨: 1->0]
+                    SIOD_oe <= 1; // SDA Low  (0) [유지]
+                    
+                    if (count == (PERIOD / 2) - 1) begin
+                        count <= 0;
+                    end else begin
+                        count <= count + 1;
+                    end
+                end
+            
+                // [3단계] DONE_D: SCL=1, SDA=1 (STOP 실행 - SDA를 올림)
+                DONE_D: begin
                     ready <= 1;
-                    SIOC_oe <= 0;
-                    SIOD_oe <= 0;
-                end        
+                    SIOC_oe <= 0; // SCL High (1)
+                    SIOD_oe <= 0; // SDA High (1) -> 여기서 0에서 1로 상승하며 STOP!
+                    
+                    if (count == (PERIOD / 2) - 1) begin
+                        count <= 0;
+                    end else begin
+                        count <= count + 1;
+                    end
+                end 
+                        
             endcase
         end
      end
@@ -150,12 +207,23 @@ module SCCB_interface
             end
             
             START_D: begin
-                next_state = START_C;
+                if (count == (PERIOD / 2) - 1) begin
+                    next_state = START_C;
+                end
+                else begin
+                    next_state = START_D;
+                end
             end
-             START_C: begin
-                next_state = CLK_LOW;
+                        
+            START_C: begin
+                if (count == (PERIOD / 2) - 1) begin
+                    next_state = CLK_LOW;
+                end
+                else begin
+                    next_state = START_C;
+                end
             end
-
+            
             CLK_LOW: begin
                 if (count == (PERIOD / 2) - 1) begin
                     if (bit_index == 0) begin
@@ -176,7 +244,7 @@ module SCCB_interface
             CHECKING: begin
                 if (count == (PERIOD / 2) - 1) begin
                     if (byte_index == 0) begin
-                        next_state = DONE;
+                        next_state = DONE_READY;
                     end
                     else begin
                         next_state = CLK_LOW;
@@ -184,8 +252,31 @@ module SCCB_interface
                 end           
             end
             
-            DONE: begin
-                next_state = IDLE;
+            DONE_READY: begin
+                 if (count == (PERIOD / 2) - 1) begin
+                    next_state = DONE_C;
+                 end
+                 else begin
+                    next_state = DONE_READY;
+                 end
+            end
+
+            DONE_C: begin
+                if (count == (PERIOD / 2) - 1) begin
+                    next_state = DONE_D;
+                end
+                else begin
+                    next_state = DONE_C;
+                end
+            end
+            
+            DONE_D: begin
+                if (count == (PERIOD / 2) - 1) begin
+                    next_state = IDLE;
+                end
+                else begin
+                    next_state = DONE_D;
+                end
             end
                         
             default: begin
