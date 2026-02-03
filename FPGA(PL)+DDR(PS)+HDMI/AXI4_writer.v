@@ -69,10 +69,6 @@ module AXI4_writer(
     wire fifo_rd_en;
     wire [12:0] rd_data_count;
     
-    // fifo reset 신호
-    reg [3:0] reset_stretch_cnt; // 펄스를 늘리기 위한 카운터
-    wire fifo_reset_safe;        // 최종적으로 사용할 안전한 리셋 신호
-    assign fifo_reset_safe = (reset_stretch_cnt > 5);
         
     localparam IDLE = 0;
     localparam ADDR_SEND = 1;
@@ -100,14 +96,11 @@ module AXI4_writer(
             AWVALID <= 0; WVALID <= 0;
         end
         else begin
-            if (vsync_negedge) begin
+            if (frame_done_d2) begin
                 ADDR_OFFSET <= 0;   // 주소 0x0100_0000 세팅
                 state <= IDLE;      
                 data_count <= 0;
                 AWVALID <= 0; WVALID <= 0;
-            end
-            else if (frame_done_d2) begin
-                state <= IDLE;
             end
             else begin
                 state <= next_state;
