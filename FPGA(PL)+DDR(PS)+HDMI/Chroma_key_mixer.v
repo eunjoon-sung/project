@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-// 조합회로로 바꿈
 
 module Chroma_key_mixer(
     input wire clk,
