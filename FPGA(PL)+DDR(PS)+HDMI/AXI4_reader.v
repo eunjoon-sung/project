@@ -119,7 +119,7 @@ module AXI4_reader(
         next_state = state;
         case (state)
             IDLE: begin
-                if (!prog_full) begin // FIFO Threshold : prog_empty 사용으로 수정함. 충분히 비었음 일 때 출발
+                if (!prog_full) begin
                     next_state = ADDR_SEND;
                 end
             end
