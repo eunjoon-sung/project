@@ -24,9 +24,9 @@ module OV7670_config
     reg [2:0] state, next_state = 0;
     reg [7:0] addr_buf; // 현재 어드레스 버퍼
     reg [15:0] data_buf; // 받은 데이터 버퍼
-    reg [17:0] timer = 0;
+    reg [23:0] timer = 0;
     
-    localparam DELAY_1MS = CLK_FREQ / 1000;
+    localparam DELAY_1MS = CLK_FREQ / 50;
         
     initial begin
         rom_addr = 0;
@@ -43,7 +43,8 @@ module OV7670_config
     localparam DATA_SEND = 3; // ready 상태 체크 후, SCCB_interface에 데이터 전송을 지시
     localparam WAIT_RES= 4; // 전송할동안 대기. ready 신호가 다시 1되길 기다림
     localparam DONE = 5;
-    localparam DELAY = 6; // rom module 의  1:  dout <= 16'hFF_F0; //delay    물리적인 대기시간 이 부분
+    localparam DELAY = 6; // 하드웨어를 고려한 설정추가: 물리적인 대기시간
+    localparam WAIT_BUSY = 7;
 
     // FSM
     // 1. state register : 값을 저장하는 역할만 함.
@@ -65,12 +66,9 @@ module OV7670_config
     
                 CHECK_DATA: begin
                     data_buf <= rom_data;
+                    timer <= DELAY_1MS;
                     if (rom_data != 16'hFF_FF) begin 
                         addr_buf <= addr_buf + 1; // 다음 주소 준비
-                    end
-                    if (rom_data == 16'hFF_F0) begin
-                        timer <= DELAY_1MS;
-                        addr_buf <= addr_buf + 1;
                     end
                 end
                 
@@ -114,9 +112,9 @@ module OV7670_config
             CHECK_DATA: begin
                 if (rom_data == 16'hFF_FF) begin // end of rom
                     next_state = DONE;
-                end 
-                else if(rom_data == 16'hFF_F0) begin
-                     next_state = DELAY;
+                end
+                else if (rom_data == 16'hFF_F0) begin
+                    next_state = DELAY;
                 end
                 else begin
                     next_state = DATA_SEND;
@@ -128,17 +126,31 @@ module OV7670_config
 					SCCB_interface_start = 1;
 					SCCB_interface_addr = data_buf[15:8];
 					SCCB_interface_data = data_buf[7:0];
-                    next_state = WAIT_RES;
+                    next_state = WAIT_BUSY;
                 end
                 else begin
                     next_state = DATA_SEND;
                 end
             end
             
+            // [추가된 상태] I2C 모듈이 Start를 인식하고 Busy(Ready=0)가 될 때까지 기다림
+            WAIT_BUSY: begin
+                SCCB_interface_start = 1; // 확실하게 Start 유지 (모듈에 따라 필요할 수 있음)
+                SCCB_interface_addr = data_buf[15:8]; // 주소/데이터 유지
+                SCCB_interface_data = data_buf[7:0];
+                
+                if (!SCCB_interface_ready) begin // Ready가 0이 되면(바빠지면) 성공!
+                    SCCB_interface_start = 0; // 이제 Start 내림
+                    next_state = WAIT_RES;    // 완료 대기 상태로 이동
+                end else begin
+                    next_state = WAIT_BUSY;   // 아직 안 바빠졌으면 계속 대기
+                end
+            end
+            
             WAIT_RES: begin   // sccb interface의 전송이 끝나길 기다림. 
                 if (SCCB_interface_ready) begin
                     SCCB_interface_start = 0;
-                    next_state = READ_ROM;
+                    next_state = DELAY;
                 end else begin
                     next_state = WAIT_RES;
                 end
@@ -146,15 +158,17 @@ module OV7670_config
             
             DONE: begin
                 done = 1;   
-                next_state = IDLE;
+                next_state = DONE;
             end
-              DELAY: begin
+            
+            DELAY: begin
                 if (timer == 0) begin
                     next_state = READ_ROM;
                 end
             end
             
             default: begin // 비정상 상태 대비
+                next_state = IDLE;
                 // next_state = 'x; 는 systemverilog 에서 유효
                 
             end
