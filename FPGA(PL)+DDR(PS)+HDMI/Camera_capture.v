@@ -89,16 +89,16 @@ module Camera_capture(
                     pixel_flag <= 0;
                 end
 
-                if (href_r2 == 1'b1 || pixel_flag == 1'b1) begin // [수정]
-                    // 첫 번째 바이트
-                    if (pixel_flag == 0) begin
+                if (href_r2 == 1'b1 || pixel_flag == 1'b1) begin
+                    pixel_valid <= 0; // [추가] 이게 빠져서 지금까지 fifo에 계속 data가 2번씩 중복되어 저장되었고 그 때문에 화면이 1/4 축소되어 보이고 겹침처럼 나타났던 것.
+                    
+                    if (pixel_flag == 0) begin // 첫 번째 바이트
                         p_data_buf <= p_data_r2;
                         pixel_flag <= 1;
                     end
-                    else begin
+                    else begin // 두 번째 바이트
                         pixel_flag <= 0;
 
-                        
                         // 짝수 픽셀만 처리 (Downscaling)
                         if (x_count[0] == 0 && y_count[0] == 0 && x_count < 640 && y_count < 480) begin
                             
