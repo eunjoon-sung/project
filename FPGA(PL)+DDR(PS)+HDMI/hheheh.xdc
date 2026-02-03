@@ -69,7 +69,5 @@ set_property PACKAGE_PIN P15 [get_ports {led_0[0]}]
 
 set_property IOSTANDARD LVCMOS33 [get_ports sys_rst_n_0]
 set_property PACKAGE_PIN W14 [get_ports sys_rst_n_0]
-
-# 필수임. 안해주면 sccb 통신 안먹음
 set_property PULLUP TRUE [get_ports ov7670_siod_0]
 set_property PULLUP TRUE [get_ports ov7670_sioc_0]
