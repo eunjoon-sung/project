@@ -20,7 +20,7 @@ module Chroma_key_mixer(
     wire [7:0] G_data = {rgb_data[7:4], 4'b0000};
     wire [7:0] B_data = {rgb_data[3:0], 4'b0000};
     
-    wire [7:0] margin = 8'd3; // 마진이 클수록 더 엄격하게 녹색을 찾게됨.
+	wire [7:0] margin = 8'd40; // 마진이 클수록 더 엄격하게 녹색을 찾게됨. [수정] 3에서 40으로 대폭 상향
 
     
     always @(*) begin
