@@ -1,7 +1,6 @@
 # OV7670 PCLK Period Constraint (25MHz = 40ns)
 
-
-
+create_clock -period 40.000 -name pclk [get_ports ov7670_pclk_0]
 
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[2]}]
