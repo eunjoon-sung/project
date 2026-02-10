@@ -16,11 +16,12 @@ module Chroma_key_mixer(
     );
     
     // [수정] rgb_data 구조: {4'b0000, R[3:0], G[3:0], B[3:0]} ---> {R[3:0], G[3:0], B[3:0] , 4'b0000} 
-    wire [7:0] R_data = {rgb_data[11:8], 4'b0000};
-    wire [7:0] G_data = {rgb_data[7:4], 4'b0000};
-    wire [7:0] B_data = {rgb_data[3:0], 4'b0000};
+   // [또 수정] rgb_data 구조: {R[3:0], G[3:0], B[3:0] , 4'b0000}  ---> RGB565 data로 받고 있으므로 다음처럼 변경
+    wire [7:0] R_data = {rgb_data[15:11], 3'b000};
+    wire [7:0] G_data = {rgb_data[10:5], 2'b00};
+    wire [7:0] B_data = {rgb_data[4:0], 3'b000};
     
-	wire [7:0] margin = 8'd40; // 마진이 클수록 더 엄격하게 녹색을 찾게됨. [수정] 3에서 40으로 대폭 상향
+    wire [7:0] margin = 8'd20; // 마진이 클수록 더 엄격하게 녹색을 찾게됨.
 
     
     always @(*) begin
