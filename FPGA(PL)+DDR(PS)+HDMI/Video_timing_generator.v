@@ -45,7 +45,7 @@ module Video_timing_generator(
     localparam IDLE = 0;
     localparam SENDING = 1;
     
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             state <= 0;
             h_count <= 0;
