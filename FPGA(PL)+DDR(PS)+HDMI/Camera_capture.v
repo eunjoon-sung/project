@@ -44,7 +44,7 @@ module Camera_capture(
     end
 
     // 단일 always 블록 (FSM 없음 -> 멈출 일 없음)
-    always @(posedge p_clock or posedge rst) begin
+    always @(posedge p_clock) begin
         if (rst) begin
             x_count <= 0;
             y_count <= 0;
