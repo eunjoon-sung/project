@@ -48,7 +48,7 @@ module OV7670_config
 
     // FSM
     // 1. state register : 값을 저장하는 역할만 함.
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) begin
             addr_buf <= 0;
             data_buf <= 0;
