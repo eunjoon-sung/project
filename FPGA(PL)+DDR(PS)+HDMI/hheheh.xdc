@@ -3,7 +3,12 @@
 create_clock -period 40.000 -name pclk [get_ports ov7670_pclk_0]
 
 # 리셋 신호 타이밍 검사 무시 (CDC 에러 끄기)
-set_false_path -from [get_cells -hier *camera_reset_reg_reg]
+# 1. 카메라 리셋 신호 무시 (계층/이름 상관없이 리셋 레지스터에서 나가는 모든 길 차단)
+set_false_path -from [get_cells -hier *camera_reset_reg_reg*]
+
+# 2. VIO 설정값 신호 무시 (100MHz -> pclk로 가는 설정값들은 천천히 변하므로 무시 가능)
+set_false_path -from [get_cells -hier *u_vio*] -to [get_clocks ov7670_pclk]
+
 
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[2]}]
