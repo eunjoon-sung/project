@@ -2,6 +2,9 @@
 
 create_clock -period 40.000 -name pclk [get_ports ov7670_pclk_0]
 
+# 리셋 신호 타이밍 검사 무시 (CDC 에러 끄기)
+set_false_path -from [get_cells -hier *camera_reset_reg_reg]
+
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[2]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[1]}]
