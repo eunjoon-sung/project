@@ -87,7 +87,7 @@ module AXI4_writer(
     end
     
     // 1. sequential logic
-    always @(posedge clk_100Mhz or posedge rst) begin
+    always @(posedge clk_100Mhz) begin
         if (rst) begin
             state <= 0;
             data_count <= 0;
