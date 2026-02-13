@@ -7,7 +7,7 @@ module OV7670_config_rom(
     output reg [15:0] dout
     );
     //FFFF is end of rom, FFF0 is delay
-    always @(posedge clk or posedge rst) begin
+    always @(posedge clk) begin
         if (rst) dout <= 0;
 			case(addr) 
 			0:  dout <= 16'h12_80; //reset
