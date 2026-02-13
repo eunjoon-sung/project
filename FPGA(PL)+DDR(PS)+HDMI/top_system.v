@@ -266,7 +266,7 @@ module top_system(
     localparam ROOM2 = 32'h0110_0000;
     localparam ROOM3 = 32'h0120_0000;
     
-    always @(posedge clk_100Mhz or posedge rst) begin
+    always @(posedge clk_100Mhz) begin
         if (rst) begin
             writer_room <= ROOM1;
             reader_room <= ROOM3;
