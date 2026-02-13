@@ -41,7 +41,7 @@ module SCCB_interface
 
      // 2-block FSM
      // 1. sequential logic
-     always @(posedge clk or posedge rst) begin
+     always @(posedge clk) begin
         if (rst) begin
             state <= 0;
             SIOC_oe <= 0;
