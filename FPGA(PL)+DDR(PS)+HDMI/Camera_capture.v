@@ -81,7 +81,7 @@ module Camera_capture(
             else begin
                 frame_done <= 0;
 
-                // HREF Falling Edge: 라인 리셋
+                // HREF Rising Edge: 라인 리셋
                 if (href_r2 == 0 && href_r1 == 1) begin 
                     x_count <= 0;
                     x_count_d <= 0; // [추가]
