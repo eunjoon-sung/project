@@ -9,6 +9,9 @@ set_false_path -from [get_cells -hier *camera_reset_reg_reg*]
 # 2. VIO 설정값 신호 무시 (100MHz -> pclk로 가는 설정값들은 천천히 변하므로 무시 가능)
 set_false_path -from [get_cells -hier *u_vio*] -to [get_clocks ov7670_pclk]
 
+set_clock_groups -asynchronous -group [get_clocks clk_out2_design_1_clk_wiz_0_0] -group [get_clocks pclk]
+set_clock_groups -asynchronous -group [get_clocks clk_out1_design_1_clk_wiz_0_0] -group [get_clocks clk_out2_design_1_clk_wiz_0_0]
+
 
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[3]}]
 set_property IOSTANDARD LVCMOS33 [get_ports {led_0[2]}]
