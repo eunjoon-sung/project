@@ -1,4 +1,4 @@
-/*
+﻿/*
  * serial.c
  *
  * Created: 2025-09-04 오후 2:46:48
@@ -10,7 +10,7 @@
  ////// 추가
  volatile unsigned char serial_flag = 0;
  volatile unsigned char serial_buf[20] = {0};
- //////
+ 
  void serial_transmit(unsigned char data)
  {
 	 while( !( UCSR1A & (1 << UDRE1)) );
